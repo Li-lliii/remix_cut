@@ -1,6 +1,5 @@
 .venv/
 venv/
-metahuman_platform/
 __pycache__/
 *.pyc
 *.pyo
