@@ -1,0 +1,12 @@
+.venv/
+venv/
+metahuman_platform/
+__pycache__/
+*.pyc
+*.pyo
+*.dylib
+*.so
+*.dll
+.DS_Store
+.idea/
+.vscode/

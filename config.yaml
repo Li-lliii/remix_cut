@@ -1,0 +1,65 @@
+# ============================================================
+# bs_media_dem 全局配置文件
+# 修改此文件即可切换 LLM 后端、ASR / TTS 设备等参数，
+# 无需改动任何 Python 代码。
+# ============================================================
+
+# ── LLM 配置 ─────────────────────────────────────────────────
+llm:
+  # ASR 文本润色（对识别结果进行分句 / 标点优化）
+  asr_polish:
+    base_url: "http://192.168.20.22:11434/v1"
+    api_key:  "ollama"
+    model:    "qwen3:1.7b"      # 轻量模型即可，主要做分句
+    timeout:  180
+
+
+
+  # 销售段识别（0/1 二分类）
+  sales_detect:
+    base_url: "http://192.168.20.25:9035/v1"
+    api_key: "catt_2025"
+    model: "qwen3_5-flash"
+    timeout: 300
+    temperature: 0.0
+    top_p: 1.0
+    max_tokens: 8
+    enable_thinking: false
+
+  # 视频口播文案生成（需要较强的创作能力）
+  gen_word:
+    base_url: "http://192.168.20.25:9035/v1"
+    api_key:  "catt_2025"
+    model:    "qwen3_5-flash"
+    timeout:  300
+
+# ── ASR 配置 ─────────────────────────────────────────────────
+asr:
+  device:          "cuda:3"   # 物理 GPU 编号；服务启动后会映射为进程内的 cuda:0
+  segment_seconds: 30         # 每段音频最大长度（秒）
+
+# ── 文案生成配置 ──────────────────────────────────────────────
+gen_word:
+  mode:         "chat"        # 生成模式：chat / ...
+  num_segments: 5             # 视频分成几段来分析
+  target_chars: 150           # 每段目标字数
+
+# ── TTS 配置 ──────────────────────────────────────────────────
+tts:
+  device:       "cuda:3"      # 物理 GPU 编号；TTS 与其内部 ASR 都绑定到这张卡
+  ref_duration: 15.0           # 参考音频截取时长（秒）
+  ref_attempts: 5             # 参考音频截取重试次数
+
+# ── 运行配置 ──────────────────────────────────────────────────
+run:
+  default_video: "video/25410_720.mp4"
+  seed: null                  # 随机种子；null 表示不固定
+
+# Comfyui配置文件
+comfyui:
+  server_address: "127.0.0.1:7040"
+  workflow_path: "/home/kemove/zhouzhibiao/bs_media/.worktrees/phase2-remix-minimal-loop/function/remix_cut/workstream/bs_media_metahuman_no_scale_up.json"
+  input_dir: "/home/kemove/zhouzhibiao/ComfyUI/input"
+  output_dir: "/home/kemove/zhouzhibiao/bs_media/.worktrees/phase2-remix-minimal-loop/function/remix_cut/test_results"
+  
+  
