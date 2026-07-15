@@ -1,0 +1,190 @@
+{
+  "0db8033b-164b-43d4-add9-d5e5d08eff08": {
+    "prompt_id": "0db8033b-164b-43d4-add9-d5e5d08eff08",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/b06b7c94-e121-4c68-80e8-e48ff17327e7/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/78ea87f2-6186-4a88-89d4-39869134a094/tts/78ea87f2-6186-4a88-89d4-39869134a094.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/78ea87f2-6186-4a88-89d4-39869134a094/final",
+    "task_type": "lip_sync",
+    "task_id": "78ea87f2-6186-4a88-89d4-39869134a094",
+    "status": "failed",
+    "message": "任务失败"
+  },
+  "0a0f5ebc-2acc-4768-bb06-489244d868ad": {
+    "prompt_id": "0a0f5ebc-2acc-4768-bb06-489244d868ad",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/b06b7c94-e121-4c68-80e8-e48ff17327e7/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/1bcfe5df-9c7e-46db-8177-9fcacb4a2cd7/tts/1bcfe5df-9c7e-46db-8177-9fcacb4a2cd7.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/1bcfe5df-9c7e-46db-8177-9fcacb4a2cd7/final",
+    "task_type": "lip_sync",
+    "task_id": "1bcfe5df-9c7e-46db-8177-9fcacb4a2cd7",
+    "status": "failed",
+    "message": "任务失败"
+  },
+  "95fee197-4942-4b6d-b5e9-bb38be87ff8b": {
+    "prompt_id": "95fee197-4942-4b6d-b5e9-bb38be87ff8b",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/b06b7c94-e121-4c68-80e8-e48ff17327e7/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/f419260e-d462-4788-8769-e2e7b68c5387/tts/f419260e-d462-4788-8769-e2e7b68c5387.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/f419260e-d462-4788-8769-e2e7b68c5387/final",
+    "task_type": "lip_sync",
+    "task_id": "f419260e-d462-4788-8769-e2e7b68c5387",
+    "status": "failed",
+    "message": "任务失败"
+  },
+  "1036002d-7044-4d94-a658-cc8ba40a671c": {
+    "prompt_id": "1036002d-7044-4d94-a658-cc8ba40a671c",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/b06b7c94-e121-4c68-80e8-e48ff17327e7/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/57b7302f-12ac-4257-b82c-cde92bdf8a71/tts/57b7302f-12ac-4257-b82c-cde92bdf8a71.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/57b7302f-12ac-4257-b82c-cde92bdf8a71/final",
+    "task_type": "lip_sync",
+    "task_id": "57b7302f-12ac-4257-b82c-cde92bdf8a71",
+    "status": "success",
+    "message": "success",
+    "output_video_url": "/home/kemove/zhouzhibiao/ComfyUI/output/metahuman/2026-06-27/171036_00001-audio.mp4"
+  },
+  "89bd05cd-90e5-4c2d-9795-cc3a406565b2": {
+    "prompt_id": "89bd05cd-90e5-4c2d-9795-cc3a406565b2",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/5ef3661c-99b0-4a1d-be2a-df937c0d1947/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/0285e6f3-401d-436e-8098-b986b06cfdc2/tts/0285e6f3-401d-436e-8098-b986b06cfdc2.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/0285e6f3-401d-436e-8098-b986b06cfdc2/final",
+    "task_type": "lip_sync",
+    "task_id": "0285e6f3-401d-436e-8098-b986b06cfdc2",
+    "status": "success",
+    "message": "success",
+    "output_video_url": "/home/kemove/zhouzhibiao/ComfyUI/output/metahuman/2026-06-27/180743_00001-audio.mp4"
+  },
+  "4b8fa318-d381-4c39-b7cc-a3b4eddfc290": {
+    "prompt_id": "4b8fa318-d381-4c39-b7cc-a3b4eddfc290",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/b06b7c94-e121-4c68-80e8-e48ff17327e7/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/a28d543d-9937-4858-8abd-a158f2a4df53/tts/a28d543d-9937-4858-8abd-a158f2a4df53.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/a28d543d-9937-4858-8abd-a158f2a4df53/final",
+    "task_type": "lip_sync",
+    "task_id": "a28d543d-9937-4858-8abd-a158f2a4df53",
+    "status": "success",
+    "message": "success",
+    "output_video_url": "/home/kemove/zhouzhibiao/ComfyUI/output/metahuman/2026-06-27/184047_00001-audio.mp4"
+  },
+  "e6817cae-646e-434f-b4e5-edfad38d92e8": {
+    "prompt_id": "e6817cae-646e-434f-b4e5-edfad38d92e8",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/5ef3661c-99b0-4a1d-be2a-df937c0d1947/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/518154ae-5f85-4a29-9fb4-5e94431a70bf/tts/518154ae-5f85-4a29-9fb4-5e94431a70bf.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/518154ae-5f85-4a29-9fb4-5e94431a70bf/final",
+    "task_type": "lip_sync",
+    "task_id": "518154ae-5f85-4a29-9fb4-5e94431a70bf",
+    "status": "success",
+    "message": "success",
+    "output_video_url": "/home/kemove/zhouzhibiao/ComfyUI/output/metahuman/2026-06-27/185501_00001-audio.mp4"
+  },
+  "72d10c48-4021-4d2e-b38f-d45a503811d7": {
+    "prompt_id": "72d10c48-4021-4d2e-b38f-d45a503811d7",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/01518311-55ca-49be-abc7-f60aefd08f71/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/8386d60a-f4ea-4f9d-be06-2b0ffbcf76c5/tts/8386d60a-f4ea-4f9d-be06-2b0ffbcf76c5.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/8386d60a-f4ea-4f9d-be06-2b0ffbcf76c5/final",
+    "task_type": "lip_sync",
+    "task_id": "8386d60a-f4ea-4f9d-be06-2b0ffbcf76c5",
+    "status": "failed",
+    "message": "任务失败"
+  },
+  "d9ffc696-007d-456f-9e76-54e3245692e1": {
+    "prompt_id": "d9ffc696-007d-456f-9e76-54e3245692e1",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/5ef3661c-99b0-4a1d-be2a-df937c0d1947/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/6982bbdd-d948-4a76-9e01-d0e0402017cb/tts/6982bbdd-d948-4a76-9e01-d0e0402017cb.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/6982bbdd-d948-4a76-9e01-d0e0402017cb/final",
+    "task_type": "lip_sync",
+    "task_id": "6982bbdd-d948-4a76-9e01-d0e0402017cb",
+    "status": "success",
+    "message": "success",
+    "output_video_url": "/home/kemove/zhouzhibiao/ComfyUI/output/metahuman/2026-06-30/145410_00001-audio.mp4"
+  },
+  "e141a11d-1ca2-4767-982b-5e5748a0556a": {
+    "prompt_id": "e141a11d-1ca2-4767-982b-5e5748a0556a",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/5ef3661c-99b0-4a1d-be2a-df937c0d1947/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/b52143ad-5007-43cc-8055-1b3db89da12e/tts/b52143ad-5007-43cc-8055-1b3db89da12e.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/b52143ad-5007-43cc-8055-1b3db89da12e/final",
+    "task_type": "lip_sync",
+    "task_id": "b52143ad-5007-43cc-8055-1b3db89da12e",
+    "status": "success",
+    "message": "success",
+    "output_video_url": "/home/kemove/zhouzhibiao/ComfyUI/output/metahuman/2026-06-30/151842_00001-audio.mp4"
+  },
+  "3e099c83-c637-4f58-8db5-6a375803e863": {
+    "prompt_id": "3e099c83-c637-4f58-8db5-6a375803e863",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/5ef3661c-99b0-4a1d-be2a-df937c0d1947/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/a2244cb7-de7a-4003-ba64-863162f86baa/tts/a2244cb7-de7a-4003-ba64-863162f86baa.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/a2244cb7-de7a-4003-ba64-863162f86baa/final",
+    "task_type": "lip_sync",
+    "task_id": "a2244cb7-de7a-4003-ba64-863162f86baa",
+    "status": "failed",
+    "message": "任务失败"
+  },
+  "3cd7e024-81a9-44d8-a701-c9c4be4acfc9": {
+    "prompt_id": "3cd7e024-81a9-44d8-a701-c9c4be4acfc9",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/8024178b-9082-4cfb-a013-ea8e65a5dfc2/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/d22ee94d-2eb7-42b0-9649-e32b924ca0f2/tts/d22ee94d-2eb7-42b0-9649-e32b924ca0f2.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/d22ee94d-2eb7-42b0-9649-e32b924ca0f2/final",
+    "task_type": "lip_sync",
+    "task_id": "d22ee94d-2eb7-42b0-9649-e32b924ca0f2",
+    "status": "failed",
+    "message": "任务失败"
+  },
+  "c784f9bd-3835-4471-9537-c767475898ab": {
+    "prompt_id": "c784f9bd-3835-4471-9537-c767475898ab",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/8024178b-9082-4cfb-a013-ea8e65a5dfc2/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/e58c603b-a1a6-46f9-9b2f-c203fb17d2a8/tts/e58c603b-a1a6-46f9-9b2f-c203fb17d2a8.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/e58c603b-a1a6-46f9-9b2f-c203fb17d2a8/final",
+    "task_type": "lip_sync",
+    "task_id": "e58c603b-a1a6-46f9-9b2f-c203fb17d2a8",
+    "status": "failed",
+    "message": "任务失败"
+  },
+  "d07d3031-8a8e-48e7-a991-241471e614d6": {
+    "prompt_id": "d07d3031-8a8e-48e7-a991-241471e614d6",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/8024178b-9082-4cfb-a013-ea8e65a5dfc2/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/fee2d14a-0a29-491f-854e-d85e8328ee86/tts/fee2d14a-0a29-491f-854e-d85e8328ee86.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/fee2d14a-0a29-491f-854e-d85e8328ee86/final",
+    "task_type": "lip_sync",
+    "task_id": "fee2d14a-0a29-491f-854e-d85e8328ee86",
+    "status": "failed",
+    "message": "任务失败"
+  },
+  "bbb5647a-5979-40d3-ae06-bef65b351957": {
+    "prompt_id": "bbb5647a-5979-40d3-ae06-bef65b351957",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/8024178b-9082-4cfb-a013-ea8e65a5dfc2/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/9790264c-a48d-4763-8468-eebff63f0e58/tts/9790264c-a48d-4763-8468-eebff63f0e58.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/9790264c-a48d-4763-8468-eebff63f0e58/final",
+    "task_type": "lip_sync",
+    "task_id": "9790264c-a48d-4763-8468-eebff63f0e58",
+    "status": "failed",
+    "message": "任务失败"
+  },
+  "d596fe90-3569-46c1-a22c-e83c0bfb0e4f": {
+    "prompt_id": "d596fe90-3569-46c1-a22c-e83c0bfb0e4f",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/8024178b-9082-4cfb-a013-ea8e65a5dfc2/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/8fc2f805-0980-4728-a603-c834ce78bfa5/tts/8fc2f805-0980-4728-a603-c834ce78bfa5.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/8fc2f805-0980-4728-a603-c834ce78bfa5/final",
+    "task_type": "lip_sync",
+    "task_id": "8fc2f805-0980-4728-a603-c834ce78bfa5",
+    "status": "failed",
+    "message": "任务失败"
+  },
+  "bd961cfe-08ce-4d72-8ab3-37741323828e": {
+    "prompt_id": "bd961cfe-08ce-4d72-8ab3-37741323828e",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/8024178b-9082-4cfb-a013-ea8e65a5dfc2/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/9312004c-5064-4061-b493-b33da2f4c7c4/tts/9312004c-5064-4061-b493-b33da2f4c7c4.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/9312004c-5064-4061-b493-b33da2f4c7c4/final",
+    "task_type": "lip_sync",
+    "task_id": "9312004c-5064-4061-b493-b33da2f4c7c4",
+    "status": "success",
+    "message": "success",
+    "output_video_url": "/home/kemove/zhouzhibiao/ComfyUI/output/metahuman/2026-07-08/003110_00001-audio.mp4"
+  },
+  "6d4547ce-9c42-4c05-904a-7638c451c85d": {
+    "prompt_id": "6d4547ce-9c42-4c05-904a-7638c451c85d",
+    "video_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/uploads/roles/2b59371b-73e9-4b68-98f7-412f642cdd80/8024178b-9082-4cfb-a013-ea8e65a5dfc2/source.mp4",
+    "audio_path": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/temp/lip_sync/67a3ba47-bd46-4cdf-b808-a92302ce01b4/tts/67a3ba47-bd46-4cdf-b808-a92302ce01b4.wav",
+    "output_dir": "/home/kemove/zhouzhibiao/bs_media/.worktrees/main-release/function/remix_cut/metahuman_platform/work/generated/lip_sync/67a3ba47-bd46-4cdf-b808-a92302ce01b4/final",
+    "task_type": "lip_sync",
+    "task_id": "67a3ba47-bd46-4cdf-b808-a92302ce01b4",
+    "status": "success",
+    "message": "success",
+    "output_video_url": "/home/kemove/zhouzhibiao/ComfyUI/output/metahuman/2026-07-08/132434_00001-audio.mp4"
+  }
+}

@@ -1,0 +1,228 @@
+"""
+数字人视频生成平台 - 音频处理服务
+包含: 音频裁剪、ASR语音识别、TTS语音合成
+"""
+import os
+import sys
+import uuid
+import tempfile
+import shutil
+from pathlib import Path
+from typing import Optional
+import logging
+
+import librosa
+import soundfile as sf
+import numpy as np
+
+# 添加项目路径到 sys.path
+PROJECT_ROOT = Path("/zhouzhibiao/gen_video")
+sys.path.insert(0, str(PROJECT_ROOT / "bs_media_dem/FireRedASR"))
+sys.path.insert(0, str(PROJECT_ROOT / "bs_media_dem/index-tts"))
+
+logger = logging.getLogger(__name__)
+
+
+class AudioService:
+    """音频处理服务类"""
+    
+    def __init__(self, config):
+        """
+        初始化音频服务
+        
+        Args:
+            config: 配置模块
+        """
+        self.config = config
+        self.asr_model = None
+        self.tts_engine = None
+        self._asr_loaded = False
+        self._tts_loaded = False
+        
+        # 设置 GPU
+        os.environ["CUDA_VISIBLE_DEVICES"] = config.GPU_DEVICE
+    
+    def load_asr_model(self):
+        """延迟加载 ASR 模型"""
+        if self._asr_loaded:
+            return
+        
+        logger.info("正在加载 FireRedASR 模型...")
+        try:
+            from fireredasr.models.fireredasr import FireRedAsr
+            self.asr_model = FireRedAsr.from_pretrained(
+                self.config.ASR_MODEL_TYPE,
+                str(self.config.ASR_MODEL_PATH)
+            )
+            self._asr_loaded = True
+            logger.info("FireRedASR 模型加载完成")
+        except Exception as e:
+            logger.error(f"ASR 模型加载失败: {e}")
+            raise
+    
+    def load_tts_engine(self):
+        """延迟加载 TTS 引擎"""
+        if self._tts_loaded:
+            return
+        
+        logger.info("正在加载 IndexTTS 引擎...")
+        try:
+            from indextts.infer import IndexTTS
+            self.tts_engine = IndexTTS(
+                cfg_path=str(self.config.TTS_CONFIG_PATH),
+                model_dir=str(self.config.TTS_MODEL_DIR),
+                use_fp16=self.config.TTS_USE_FP16
+            )
+            self._tts_loaded = True
+            logger.info("IndexTTS 引擎加载完成")
+        except Exception as e:
+            logger.error(f"TTS 引擎加载失败: {e}")
+            raise
+    
+    def trim_audio(self, audio_path: str, duration: float = 5.0, output_path: Optional[str] = None) -> str:
+        """
+        裁剪音频到指定时长
+        
+        Args:
+            audio_path: 输入音频路径
+            duration: 目标时长(秒)
+            output_path: 输出路径，不指定则自动生成
+            
+        Returns:
+            裁剪后的音频路径
+        """
+        logger.info(f"正在裁剪音频: {audio_path} -> {duration}秒")
+        
+        # 加载音频
+        audio, sr = librosa.load(audio_path, sr=self.config.AUDIO_SAMPLE_RATE, mono=True)
+        current_duration = librosa.get_duration(y=audio, sr=sr)
+        
+        if current_duration <= duration:
+            logger.info(f"音频时长 {current_duration:.2f}s <= {duration}s，无需裁剪")
+            if output_path:
+                shutil.copy2(audio_path, output_path)
+                return output_path
+            return audio_path
+        
+        # 裁剪到指定时长
+        samples_to_keep = int(duration * sr)
+        trimmed_audio = audio[:samples_to_keep]
+        
+        # 保存裁剪后的音频
+        if output_path is None:
+            output_path = str(self.config.TEMP_DIR / f"trimmed_{uuid.uuid4().hex[:8]}.wav")
+        
+        sf.write(output_path, trimmed_audio, sr)
+        logger.info(f"音频裁剪完成: {output_path}")
+        
+        return output_path
+    
+    def transcribe(self, audio_path: str) -> str:
+        """
+        语音识别 (ASR)
+        
+        Args:
+            audio_path: 音频文件路径
+            
+        Returns:
+            识别出的文本
+        """
+        self.load_asr_model()
+        
+        logger.info(f"正在进行语音识别: {audio_path}")
+        
+        uttid = f"task_{uuid.uuid4().hex[:8]}"
+        
+        # 加载音频并检查时长
+        audio, sr = librosa.load(audio_path, sr=self.config.AUDIO_SAMPLE_RATE, mono=True)
+        duration = librosa.get_duration(y=audio, sr=sr)
+        
+        # 对于短音频，直接识别
+        results = self.asr_model.transcribe(
+            [uttid],
+            [audio_path],
+            {
+                "use_gpu": True,
+                "beam_size": 3,
+                "nbest": 1,
+                "decode_max_len": 0,
+                "softmax_smoothing": 1.25,
+                "aed_length_penalty": 0.6,
+                "eos_penalty": 1.0
+            }
+        )
+        
+        text = results[0]['text'] if results else ""
+        logger.info(f"语音识别结果: {text}")
+        
+        return text
+    
+    def synthesize(self, reference_audio: str, target_text: str, output_path: Optional[str] = None) -> str:
+        """
+        语音合成 (TTS) - 使用参考音频进行声音克隆
+        
+        Args:
+            reference_audio: 参考音频路径 (用于声音克隆)
+            target_text: 目标文本 (要合成的内容)
+            output_path: 输出路径
+            
+        Returns:
+            生成的音频路径
+        """
+        self.load_tts_engine()
+        
+        logger.info(f"正在进行语音合成: '{target_text[:50]}...'")
+        
+        if output_path is None:
+            output_path = str(self.config.TEMP_DIR / f"tts_{uuid.uuid4().hex[:8]}.wav")
+        
+        # 使用 IndexTTS 进行语音合成
+        self.tts_engine.infer(
+            audio_prompt=reference_audio,
+            text=target_text,
+            output_path=output_path,
+            verbose=True
+        )
+        
+        logger.info(f"语音合成完成: {output_path}")
+        
+        return output_path
+    
+    def process_audio_pipeline(self, user_audio: str, target_text: str) -> str:
+        """
+        完整的音频处理流水线:
+        1. 裁剪用户音频到5秒
+        2. 对裁剪后的音频进行ASR识别 (可选，用于日志记录)
+        3. 使用裁剪后的音频作为参考进行TTS合成
+        
+        Args:
+            user_audio: 用户上传的音频路径
+            target_text: 用户想要合成的文本
+            
+        Returns:
+            最终生成的音频路径
+        """
+        logger.info("开始音频处理流水线...")
+        
+        # Step 1: 裁剪音频到5秒
+        trimmed_audio = self.trim_audio(
+            user_audio,
+            duration=self.config.AUDIO_CLIP_DURATION
+        )
+        
+        # Step 2: ASR识别 (记录日志，便于调试)
+        try:
+            recognized_text = self.transcribe(trimmed_audio)
+            logger.info(f"参考音频内容: {recognized_text}")
+        except Exception as e:
+            logger.warning(f"ASR识别失败 (不影响后续处理): {e}")
+        
+        # Step 3: TTS合成
+        output_audio = self.synthesize(
+            reference_audio=trimmed_audio,
+            target_text=target_text
+        )
+        
+        logger.info(f"音频处理流水线完成: {output_audio}")
+        
+        return output_audio

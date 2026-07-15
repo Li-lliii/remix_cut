@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智媒数字人平台</title>
+    <link rel="stylesheet" href="/static/platform/app.css">
+</head>
+<body>
+    <div id="app-shell" class="shell">
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-mark">智</div>
+                <div>
+                    <h1>智媒数字人平台</h1>
+                    <p>Phase 1 角色与视频基础层</p>
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <input id="global-role-search" class="search-input" type="search" placeholder="搜索角色">
+                <button id="top-create-role-btn" class="primary-btn">新建角色</button>
+            </div>
+        </header>
+
+        <div class="layout">
+            <aside class="sidebar">
+                <nav id="lobby-nav" class="nav-list nav-group">
+                    <button class="nav-item active" data-route="lobby">角色大厅</button>
+                </nav>
+                <div id="workbench-nav" class="nav-group" hidden>
+                    <div class="sidebar-note workbench-role-card">
+                        <p>当前角色</p>
+                        <strong id="sidebar-role-name">未选择角色</strong>
+                        <button id="switch-role-btn" class="ghost-btn" type="button">切换角色</button>
+                    </div>
+                    <nav class="nav-list">
+                        <button class="nav-item" data-route="video-manager">视频管理</button>
+                        <button class="nav-item" data-route="remix-video-select">混合剪辑</button>
+                        <button class="nav-item" data-route="lip-sync-video-select">对口型生成</button>
+                        <button class="nav-item" data-route="tasks">任务进度</button>
+                        <button class="nav-item" data-route="review">审核与成片</button>
+                    </nav>
+                </div>
+                <div class="sidebar-note">
+                    <p>当前阶段</p>
+                    <strong>角色工作台 / 视频管理 / 混合剪辑 / 对口型生成</strong>
+                </div>
+            </aside>
+
+            <main id="main-content" class="content">
+                <section id="view-lobby" class="view active" data-view="lobby">
+                    <div class="section-head">
+                        <div>
+                            <span class="eyebrow">平台首页</span>
+                            <h2>角色大厅</h2>
+                        </div>
+                        <button id="create-role-btn" class="primary-btn">新建角色</button>
+                    </div>
+                    <div class="panel role-overview-panel" data-testid="role-overview-panel">
+                        <div class="role-overview-head">
+                            <div>
+                                <span class="eyebrow">当前角色总览</span>
+                                <h3 id="role-overview-title">未选择角色</h3>
+                                <p class="hint-text" id="role-overview-subtitle">选择一个角色后，这里会显示视频数量、最新上传时间和任务状态。</p>
+                            </div>
+                        </div>
+                        <div class="role-overview-grid">
+                            <article class="overview-stat">
+                                <span class="overview-label">总视频数量</span>
+                                <strong id="role-overview-video-count">-</strong>
+                                <p>当前角色下已上传视频总数。</p>
+                            </article>
+                            <article class="overview-stat">
+                                <span class="overview-label">最新上传时间</span>
+                                <strong id="role-overview-latest-upload">-</strong>
+                                <p>最近一次上传或更新的视频时间。</p>
+                            </article>
+                            <article class="overview-stat">
+                                <span class="overview-label">任务状态</span>
+                                <strong id="role-overview-task-status">-</strong>
+                                <p>是否有预处理、混剪或口型同步任务正在进行。</p>
+                            </article>
+                        </div>
+                    </div>
+                    <input id="role-cover-upload-input" type="file" accept="image/*" hidden>
+                    <div id="role-grid" class="card-grid" data-testid="role-grid"></div>
+                </section>
+
+                <section id="view-create-role" class="view" data-view="create-role">
+                    <div class="section-head">
+                        <div>
+                            <span class="eyebrow">角色创建</span>
+                            <h2>新建角色</h2>
+                        </div>
+                    </div>
+                    <form id="create-role-form" class="panel form-panel">
+                        <label>角色名称
+                            <input id="role-name-input" name="name" type="text" required>
+                        </label>
+                        <label>角色描述
+                            <textarea id="role-description-input" name="description"></textarea>
+                        </label>
+                        <label>标签
+                            <input id="role-tags-input" name="tags" type="text" placeholder="用逗号分隔">
+                        </label>
+                        <label>角色封面地址
+                            <input id="role-avatar-input" name="avatar_url" type="text" placeholder="可为空，默认占位封面">
+                        </label>
+                        <div class="form-actions">
+                            <button id="default-avatar-btn" type="button" class="ghost-btn">默认封面</button>
+                            <button type="submit" class="primary-btn">创建角色</button>
+                            <button id="cancel-create-role-btn" type="button" class="ghost-btn">取消</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section id="view-role-actions" class="view" data-view="role-actions">
+                    <div class="section-head">
+                        <div>
+                            <span class="eyebrow">旧中转页</span>
+                            <h2 id="selected-role-name">角色功能选择页</h2>
+                            <p class="hint-text">该页已降级，不再作为主流程入口。请选择左侧工作台导航继续操作。</p>
+                        </div>
+                    </div>
+                    <div class="card-grid action-grid">
+                        <article class="panel action-card">
+                            <h3>混合剪辑</h3>
+                            <p>进入长视频选择、任务创建与任务进度壳子。</p>
+                            <button id="enter-remix-btn" class="primary-btn" type="button">进入混合剪辑</button>
+                        </article>
+                        <article class="panel action-card">
+                            <h3>对口型生成</h3>
+                            <p>进入基础视频选择、文案生成与选择、生成确认三页式链路。</p>
+                            <button id="enter-lip-sync-btn" class="primary-btn" type="button">进入对口型生成</button>
+                        </article>
+                        <article class="panel action-card">
+                            <h3>视频管理</h3>
+                            <p>上传、预览、删除、置顶、查看语音转文字状态。</p>
+                            <button id="enter-video-manager-btn" class="primary-btn" type="button">进入视频管理</button>
+                        </article>
+                    </div>
+                </section>
+
+                <section id="view-video-manager" class="view" data-view="video-manager">
+                    <div class="section-head">
+                        <div>
+                            <span class="eyebrow">角色视频管理页</span>
+                            <h2 id="video-manager-role-name">视频管理</h2>
+                            <p class="hint-text">建议上传真实拍摄视频，非真实视频可能导致生成质量明显下降。</p>
+                        </div>
+                        <div class="section-actions">
+                            <button id="refresh-videos-btn" class="ghost-btn" type="button">刷新语音转文字状态</button>
+                            <label class="primary-btn upload-btn">
+                                上传视频
+                                <input id="video-upload-input" type="file" accept="video/*" hidden>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="upload-progress-panel" class="upload-progress-panel" data-testid="upload-progress-panel" hidden>
+                        <div class="upload-progress-head">
+                            <span id="upload-progress-text">等待上传</span>
+                            <span id="upload-progress-percent">0%</span>
+                        </div>
+                        <div class="upload-progress-track" aria-hidden="true">
+                            <div id="upload-progress-bar" class="upload-progress-bar" data-testid="upload-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="video-manager-grid remix-video-manager-grid">
+                        <div class="panel">
+                            <h3>视频预览</h3>
+                            <div id="video-preview-container" class="video-preview video-preview-compact" data-testid="video-preview-container">
+                                <p>选择视频后可在这里预览。</p>
+                            </div>
+                        </div>
+                        <div class="panel">
+                            <h3>语音转文字状态</h3>
+                            <div id="asr-status-panel" class="status-stack" data-testid="asr-status-panel">
+                                <p>上传视频后可查看语音转文字处理状态。</p>
+                            </div>
+                            <h3>语音转文字总结</h3>
+                            <div id="asr-summary-panel" class="summary-box" data-testid="asr-summary-panel">
+                                暂无语音转文字总结
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="video-groups" class="group-stack" data-testid="video-groups">
+                        <section class="panel video-group">
+                            <h3>置顶</h3>
+                            <div id="group-pinned" class="video-list" data-group="pinned"></div>
+                        </section>
+                        <section class="panel video-group">
+                            <h3>最近（3天）</h3>
+                            <div id="group-recent" class="video-list" data-group="recent"></div>
+                        </section>
+                        <section class="panel video-group">
+                            <h3>最近一周</h3>
+                            <div id="group-week" class="video-list" data-group="week"></div>
+                        </section>
+                        <section class="panel video-group">
+                            <h3>一周之前</h3>
+                            <div id="group-old" class="video-list" data-group="old"></div>
+                        </section>
+                    </div>
+                </section>
+
+                <section id="view-remix-video-select" class="view" data-view="remix-video-select">
+                    <div class="section-head">
+                        <div>
+                            <span class="eyebrow">混合剪辑</span>
+                            <h2>混合剪辑 - 视频选择</h2>
+                            <p class="hint-text">从角色已有视频中选择一个长视频发起混剪，或直接进入智能切片提取纯带货口播。</p>
+                        </div>
+                    </div>
+                    <div class="video-manager-grid">
+                        <div class="panel">
+                            <div class="section-head compact-head">
+                                <div>
+                                    <h3>长视频列表</h3>
+                                    <p class="hint-text">选择后将立即进入任务创建页，并自动检查预处理。</p>
+                                </div>
+                                <input id="remix-video-search" class="search-input" type="search" placeholder="搜索视频">
+                            </div>
+                            <div id="remix-video-list" class="video-list"></div>
+                        </div>
+                        <div class="panel">
+                            <h3>预览说明</h3>
+                            <div id="remix-video-preview" class="video-preview">
+                                <p>视频预览已移至卡片，点击左侧视频卡片即可直接预览。</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-smart-clip-project" class="view" data-view="smart-clip-project">
+                    <div class="section-head">
+                        <div>
+                            <span class="eyebrow">混合剪辑</span>
+                            <h2>智能切片项目</h2>
+                            <p class="hint-text">按原长视频归档展示候选切片、处理进度与导出结果，整体视觉与现有工作台保持一致。</p>
+                        </div>
+                        <div class="section-actions">
+                            <button id="smart-clip-back-btn" class="ghost-btn" type="button">返回长视频列表</button>
+                            <button id="smart-clip-restart-btn" class="ghost-btn" type="button">重新智能切片</button>
+                            <button id="smart-clip-export-btn" class="primary-btn" type="button">导出保留切片</button>
+                        </div>
+                    </div>
+                    <div class="task-create-grid">
+                        <div class="panel placeholder-panel">
+                            <div class="section-head compact-head">
+                                <div>
+                                    <h3 id="smart-clip-project-title">原视频信息</h3>
+                                    <p id="smart-clip-project-status" class="hint-text">请选择或创建一个智能切片项目。</p>
+                                </div>
+                                <span id="smart-clip-project-stage" class="status-chip status-running">待处理</span>
+                            </div>
+                            <div id="smart-clip-source-summary" class="video-preview">
+                                <p>项目创建后，这里会展示原视频名称、时长、语音转文字状态和来源归属。</p>
+                            </div>
+                        </div>
+                        <div id="smart-clip-progress-panel" class="panel placeholder-panel smart-clip-progress-panel">
+                            <div class="section-head compact-head">
+                                <div>
+                                    <h3>处理进度</h3>
+                                    <p id="smart-clip-progress-text" class="hint-text">等待智能切片开始。</p>
+                                </div>
+                                <span id="smart-clip-progress-counts" class="status-chip status-running">0 / 0</span>
+                            </div>
+                            <div class="smart-clip-progress-track" aria-hidden="true">
+                                <div id="smart-clip-progress-bar" class="smart-clip-progress-bar"></div>
+                            </div>
+                            <p id="smart-clip-progress-summary" class="hint-text">分析完成后会在下方展示候选切片列表。</p>
+                        </div>
+                    </div>
+                    <div class="panel candidate-panel">
+                        <div class="section-head compact-head">
+                            <div>
+                                <h3>候选切片列表</h3>
+                                <p class="hint-text">支持预览导出结果与删除整段候选切片，切片始终归属于当前原长视频。</p>
+                            </div>
+                        </div>
+                        <div id="smart-clip-candidate-list" class="candidate-list">
+                            <p>候选切片生成后，这里会按时间顺序展示所有片段。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-remix-task-create" class="view" data-view="remix-task-create">
+                    <div class="section-head">
+                        <div>
+                            <span class="eyebrow">混合剪辑</span>
+                            <h2>混合剪辑 - 任务创建</h2>
+                            <p class="hint-text">补充提示词、商品文案和输出参数后，就可以直接创建混剪任务。</p>
+                        </div>
+                    </div>
+                    <div class="task-create-grid">
+                        <div id="selected-remix-video-summary" class="panel placeholder-panel">
+                            <h3>已选视频信息</h3>
+                            <p>选择长视频后，这里会展示视频名称、时长和预处理状态。</p>
+                        </div>
+                        <form id="remix-task-form" class="panel form-panel remix-form" action="#">
+                            <label>商品提示词
+                                <textarea id="remix-prompt-input" placeholder="说明你希望生成的视频风格、结构或重点片段" required></textarea>
+                            </label>
+                            <label>商品文案
+                                <textarea id="remix-product-doc-input" placeholder="粘贴商品卖点、活动信息或镜头要求"></textarea>
+                            </label>
+                            <label>目标生成数量
+                                <input id="remix-target-count-input" type="number" min="1" max="10" value="3">
+                            </label>
+                            <label class="inline-toggle">
+                                <input id="remix-max-mode-input" type="checkbox">
+                                <span>启用高质量模式</span>
+                            </label>
+                            <label>画面比例
+                                <select id="remix-aspect-mode-input">
+                                    <option value="default">默认原比例</option>
+                                    <option value="landscape">横屏</option>
+                                    <option value="portrait">竖屏</option>
+                                </select>
+                            </label>
+                            <p id="remix-aspect-warning" class="hint-text emphasis-text">选择非默认比例可能会改变原视频结构。</p>
+                            <label>输出分辨率
+                                <select id="remix-resolution-input">
+                                    <option value="720p">720p</option>
+                                    <option value="1080p">1080p</option>
+                                </select>
+                            </label>
+                            <label class="inline-toggle">
+                                <input id="remix-subtitle-input" type="checkbox" checked>
+                                <span>自动附加字幕</span>
+                            </label>
+                            <div class="form-actions">
+                                <button type="submit" class="primary-btn">创建混剪任务</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <section id="view-lip-sync-video-select" class="view" data-view="lip-sync-video-select">
+                    <div class="section-head">
+                        <div>
+                            <span class="eyebrow">对口型生成</span>
+                            <h2>对口型生成 - 基础视频选择</h2>
+                            <p class="hint-text">建议使用真实拍摄视频，非真实视频会明显影响生成质量。</p>
+                        </div>
+                    </div>
+                    <div class="video-manager-grid lip-sync-video-manager-grid">
+                        <div class="panel">
+                            <div class="section-head compact-head">
+                                <div>
+                                    <h3>基础视频列表</h3>
+                                    <p class="hint-text">时长超过 30 秒的视频会保留展示，但灰色不可选。</p>
+                                </div>
+                                <input id="lip-sync-video-search" class="search-input" type="search" placeholder="搜索基础视频">
+                            </div>
+                            <div id="lip-sync-video-list" class="video-list"></div>
+                            <p class="hint-text">每张卡片内都可直接预览；超过 30 秒的视频仍会显示预览，但不能进入下一步。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-lip-sync-scripts" class="view" data-view="lip-sync-scripts">
+                    <div class="section-head">
+                        <div>
+                            <span class="eyebrow">对口型生成</span>
+                            <h2>对口型生成 - 文案生成与选择</h2>
+                            <p class="hint-text">确认基础视频后，在这里生成候选文案、管理商品文案并选择最终脚本。</p>
+                        </div>
+                    </div>
+                    <div class="task-create-grid lip-sync-script-grid">
+                        <div class="panel lip-sync-input-panel">
+                            <h3>基础视频预览</h3>
+                            <div id="lip-sync-script-preview" class="video-preview">
+                                <p>选择基础视频后，这里会同步展示预览。</p>
+                            </div>
+                            <label class="field-label field-label-strong">口型生成提示词
+                                <textarea id="lip-sync-prompt-input" class="text-field text-field-prominent" placeholder="例如：口播自然、专业讲解、语速适中"></textarea>
+                            </label>
+                            <p id="lip-sync-generation-status" class="hint-text" hidden>正在生成文案，请稍后。</p>
+                            <div class="form-actions">
+                                <button id="generate-lip-sync-scripts-btn" class="primary-btn" type="button">生成 3-5 版文案</button>
+                                <button id="go-lip-sync-confirm-btn" class="ghost-btn" type="button">下一步</button>
+                            </div>
+                        </div>
+                        <div class="panel lip-sync-input-panel">
+                            <label class="field-label field-label-strong">商品文案
+                                <textarea id="lip-sync-product-doc-input" class="text-field text-field-prominent" placeholder="可直接粘贴产品卖点，或上传 TXT 文案"></textarea>
+                            </label>
+                            <div class="form-actions lip-sync-doc-actions">
+                                <label class="ghost-btn upload-btn">
+                                    上传商品文案
+                                    <input id="lip-sync-product-doc-upload-input" type="file" accept=".txt,text/plain" hidden>
+                                </label>
+                            </div>
+                            <div id="lip-sync-product-doc-list" class="candidate-list"></div>
+                            <div class="candidate-meta-row">
+                                <span>文案正文</span>
+                                <span>字数</span>
+                                <span>预估 TTS 时长</span>
+                            </div>
+                            <div id="lip-sync-candidate-list" class="candidate-list"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-lip-sync-confirm" class="view" data-view="lip-sync-confirm">
+                    <div class="section-head">
+                        <div>
+                            <span class="eyebrow">对口型生成</span>
+                            <h2>对口型生成 - 生成确认</h2>
+                            <p class="hint-text">最终TTS必须小于30秒，否则系统会自动拦截。</p>
+                        </div>
+                    </div>
+                    <div class="task-create-grid">
+                        <div id="lip-sync-confirm-summary" class="panel placeholder-panel">
+                            <h3>确认信息</h3>
+                            <p>这里展示当前角色、基础视频、已选文案。</p>
+                        </div>
+                        <form id="lip-sync-confirm-form" class="panel form-panel remix-form" action="#">
+                            <label>画面比例
+                                <select id="lip-sync-aspect-mode-input">
+                                    <option value="default">默认原比例</option>
+                                    <option value="landscape">横屏</option>
+                                    <option value="portrait">竖屏</option>
+                                </select>
+                            </label>
+                            <p id="lip-sync-aspect-warning" class="hint-text emphasis-text">选择非默认比例可能会改变原视频结构。</p>
+                            <label>输出分辨率
+                                <select id="lip-sync-resolution-input">
+                                    <option value="720p">720p</option>
+                                    <option value="1080p">1080p</option>
+                                </select>
+                            </label>
+                            <label class="inline-toggle">
+                                <input id="lip-sync-subtitle-input" type="checkbox" checked>
+                                <span>字幕开关</span>
+                            </label>
+                            <p id="lip-sync-submit-status" class="hint-text" hidden>视频生成时间较长，可前往任务进度页查看状态。</p>
+                            <div class="form-actions">
+                                <button id="submit-lip-sync-task-btn" type="submit" class="primary-btn">提交对口型任务</button>
+                                <button id="open-lip-sync-tasks-btn" class="ghost-btn" type="button">查看任务进度</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <section id="view-tasks" class="view" data-view="tasks">
+                    <div class="section-head">
+                        <div>
+                            <span class="eyebrow">任务中心</span>
+                            <h2>任务进度页</h2>
+                            <p class="hint-text">统一展示预处理、混合剪辑和对口型三类任务，每页只显示 7 条。</p>
+                        </div>
+                        <div class="task-bubbles">
+                            <span class="status-chip status-running">预处理中：0</span>
+                            <span class="status-chip status-running">混合剪辑中：0</span>
+                            <span class="status-chip status-running">对口型生成中：0</span>
+                        </div>
+                    </div>
+                    <div class="panel task-panel">
+                        <div id="task-delete-toolbar" class="bulk-toolbar" hidden>
+                            <div class="bulk-left">
+                                <span class="bulk-title">已选</span>
+                                <span id="task-selected-count" class="status-chip status-running">0</span>
+                                <span class="bulk-subtitle">条任务记录</span>
+                            </div>
+                            <div class="bulk-actions">
+                                <button id="task-select-all-btn" class="ghost-btn" type="button">全选（终态）</button>
+                                <button id="task-clear-selection-btn" class="ghost-btn" type="button">清空</button>
+                                <button id="task-delete-selected-btn" class="danger-btn" type="button">删除选中</button>
+                            </div>
+                            <p class="bulk-hint">仅删除任务记录，不删除已生成文件。</p>
+                        </div>
+                        <div class="task-tabs" data-testid="task-tabs">
+                            <button class="task-tab active" type="button" data-task-tab="preprocess">预处理</button>
+                            <button class="task-tab" type="button" data-task-tab="remix">混合剪辑</button>
+                            <button class="task-tab" type="button" data-task-tab="lip-sync">对口型生成</button>
+                        </div>
+                        <div id="preprocess-job-list" class="task-table-placeholder" data-task-panel="preprocess"></div>
+                        <div id="remix-task-list" class="task-table-placeholder" data-task-panel="remix" hidden></div>
+                        <div id="lip-sync-task-list" class="task-table-placeholder" data-task-panel="lip-sync" hidden></div>
+                        <div class="task-pagination" data-testid="task-pagination">
+                            <button id="task-prev-page-btn" class="ghost-btn" type="button">上一页</button>
+                            <span id="task-page-indicator" class="task-pagination-info">第 1 / 1 页，每页 7 条</span>
+                            <button id="task-next-page-btn" class="ghost-btn" type="button">下一页</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-review" class="view" data-view="review">
+                    <div class="section-head">
+                        <div>
+                            <span class="eyebrow">审核与成片</span>
+                            <h2>审核与成片</h2>
+                            <p class="hint-text">当前先展示当前角色下所有成功生成的视频结果，支持按原始视频名称搜索与按生成类型筛选。</p>
+                        </div>
+                        <div class="review-toolbar">
+                            <input
+                                id="final-video-search-input"
+                                class="search-input"
+                                type="search"
+                                placeholder="按原始视频名称搜索"
+                            />
+                            <select id="final-video-source-type-filter" class="search-input review-filter-select">
+                                <option value="all">全部类型</option>
+                                <option value="remix">混合剪辑</option>
+                                <option value="lip_sync">对口型</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="panel review-panel">
+                        <div class="section-head compact-head">
+                            <div>
+                                <h3>成片预览</h3>
+                                <p class="hint-text">按生成时间倒序展示。可通过原始视频名称查找生成视频。</p>
+                            </div>
+                            <span id="final-video-count" class="status-chip status-running">0 条结果</span>
+                        </div>
+                        <div id="final-video-bulk-toolbar" class="bulk-toolbar bulk-toolbar-inline" hidden>
+                            <div class="bulk-left">
+                                <span class="bulk-title">已选</span>
+                                <span id="final-video-selected-count" class="status-chip status-running">0</span>
+                                <span class="bulk-subtitle">条成片</span>
+                            </div>
+                            <div class="bulk-actions">
+                                <button id="final-video-select-all-btn" class="ghost-btn" type="button">全选</button>
+                                <button id="final-video-clear-selection-btn" class="ghost-btn" type="button">清空</button>
+                                <button id="final-video-delete-selected-btn" class="danger-btn" type="button">删除选中</button>
+                            </div>
+                            <p class="bulk-hint">将删除成片记录及对应视频文件，不可恢复。</p>
+                        </div>
+                        <div id="final-video-list" class="final-video-grid" data-testid="final-video-list">
+                            <p>当前角色暂无成功生成的视频。</p>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="/static/platform/app.js"></script>
+</body>
+</html>
