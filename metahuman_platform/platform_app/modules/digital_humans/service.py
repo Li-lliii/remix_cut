@@ -17,6 +17,10 @@ from platform_app.modules.digital_humans.storage import DigitalHumanStorage, Upl
 
 
 class DigitalHumanService:
+    TRAINING_STATUSES = {"training_pending", "pending", "queued", "submitted", "running", "training"}
+    ACTIVE_STATUSES = {"active", "success", "completed"}
+    FAILED_STATUSES = {"failed", "cancelled"}
+
     def __init__(self, *, db_path: Path, uploads_dir: Path):
         self.db_path = Path(db_path)
         self.uploads_dir = Path(uploads_dir)
@@ -224,6 +228,32 @@ class DigitalHumanService:
             for digital_human in self.digital_human_repository.list()
         ]
 
+    def list_digital_human_library(
+        self,
+        *,
+        search: str | None = None,
+        avatar_type: str | None = None,
+        status: str | None = None,
+    ):
+        records = [self._build_library_item(item) for item in self.digital_human_repository.list()]
+        filtered = [
+            record
+            for record in records
+            if self._matches_library_filters(
+                record,
+                search=search,
+                avatar_type=avatar_type,
+                status=status,
+            )
+        ]
+        return {
+            "items": filtered,
+            "total_count": len(records),
+            "filtered_count": len(filtered),
+            "summary": self._build_library_summary(records),
+            "filters": self._build_library_filter_options(records),
+        }
+
     def get_digital_human_detail(self, digital_human_id: str):
         digital_human = self.digital_human_repository.get(digital_human_id)
         if digital_human is None:
@@ -393,3 +423,141 @@ class DigitalHumanService:
             "profile": self.profile_repository.get_by_digital_human(digital_human["id"]),
             "primary_asset": self._enrich_asset_for_display(primary_asset),
         }
+
+    def _build_library_item(self, digital_human: dict):
+        profile = self.profile_repository.get_by_digital_human(digital_human["id"]) or {}
+        assets = self.asset_repository.list_by_digital_human(digital_human["id"])
+        tasks = self.task_repository.list_by_digital_human(digital_human["id"])
+        display_asset = self._pick_display_asset(digital_human, assets)
+        status_group = self._status_group(digital_human.get("status", ""))
+        return {
+            "id": digital_human["id"],
+            "name": digital_human.get("name", ""),
+            "avatar_type": digital_human.get("avatar_type", ""),
+            "gender": digital_human.get("gender", ""),
+            "status": digital_human.get("status", ""),
+            "status_group": status_group,
+            "status_label": self._status_label(status_group, digital_human.get("status", "")),
+            "department": profile.get("department", ""),
+            "organization": profile.get("organization", ""),
+            "speaker_name": profile.get("speaker_name", ""),
+            "tags": profile.get("tags_json") or [],
+            "style": profile.get("style", ""),
+            "description": profile.get("description", ""),
+            "profile": profile,
+            "display_asset": self._enrich_asset_for_display(display_asset),
+            "primary_asset": self._enrich_asset_for_display(
+                self.asset_repository.get(digital_human["primary_asset_id"])
+                if digital_human.get("primary_asset_id")
+                else None
+            ),
+            "assets_count": len(assets),
+            "latest_task": tasks[0] if tasks else None,
+            "created_at": digital_human.get("created_at"),
+            "updated_at": digital_human.get("updated_at"),
+        }
+
+    def _pick_display_asset(self, digital_human: dict, assets: list[dict]):
+        if digital_human.get("primary_asset_id"):
+            for asset in assets:
+                if asset["id"] == digital_human["primary_asset_id"]:
+                    return asset
+        priority = {"person_image": 0, "avatar_image": 1, "cover_image": 2, "talking_video": 3}
+        return min(assets, key=lambda asset: priority.get(asset.get("asset_type"), 100), default=None)
+
+    def _matches_library_filters(
+        self,
+        record: dict,
+        *,
+        search: str | None,
+        avatar_type: str | None,
+        status: str | None,
+    ) -> bool:
+        normalized_type = self._normalize_filter_value(avatar_type)
+        if normalized_type and record.get("avatar_type") != normalized_type:
+            return False
+
+        normalized_status = self._normalize_filter_value(status)
+        if normalized_status and normalized_status not in {record.get("status"), record.get("status_group")}:
+            return False
+
+        keyword = self._normalize_filter_value(search)
+        if not keyword:
+            return True
+        searchable = [
+            record.get("name", ""),
+            record.get("avatar_type", ""),
+            record.get("gender", ""),
+            record.get("department", ""),
+            record.get("organization", ""),
+            record.get("speaker_name", ""),
+            record.get("style", ""),
+            record.get("description", ""),
+            " ".join(record.get("tags") or []),
+        ]
+        return keyword.lower() in " ".join(str(value) for value in searchable).lower()
+
+    def _build_library_summary(self, records: list[dict]):
+        status_counts = {}
+        type_counts = {}
+        for record in records:
+            status = record.get("status") or "unknown"
+            status_group = record.get("status_group") or "unknown"
+            avatar_type = record.get("avatar_type") or "unknown"
+            status_counts[status] = status_counts.get(status, 0) + 1
+            if status_group != status:
+                status_counts[status_group] = status_counts.get(status_group, 0) + 1
+            type_counts[avatar_type] = type_counts.get(avatar_type, 0) + 1
+        return {
+            "total_count": len(records),
+            "active_count": status_counts.get("active", 0),
+            "training_count": status_counts.get("training", 0),
+            "failed_count": status_counts.get("failed", 0),
+            "status_counts": status_counts,
+            "type_counts": type_counts,
+        }
+
+    def _build_library_filter_options(self, records: list[dict]):
+        types = sorted({record.get("avatar_type") for record in records if record.get("avatar_type")})
+        statuses = {}
+        for record in records:
+            if record.get("status"):
+                statuses[record["status"]] = self._status_label(record.get("status_group", ""), record["status"])
+            if record.get("status_group"):
+                statuses[record["status_group"]] = self._status_label(record["status_group"], record["status_group"])
+        return {
+            "avatar_types": types,
+            "statuses": [
+                {"value": value, "label": label}
+                for value, label in sorted(statuses.items(), key=lambda item: item[0])
+            ],
+        }
+
+    def _status_group(self, status: str) -> str:
+        if status in self.ACTIVE_STATUSES:
+            return "active"
+        if status in self.TRAINING_STATUSES:
+            return "training"
+        if status in self.FAILED_STATUSES:
+            return "failed"
+        if status in {"draft"}:
+            return "draft"
+        return status or "unknown"
+
+    def _status_label(self, status_group: str, status: str) -> str:
+        labels = {
+            "active": "已激活",
+            "training": "训练中",
+            "failed": "失败",
+            "draft": "草稿",
+            "unknown": "未知",
+        }
+        return labels.get(status_group) or labels.get(status) or status
+
+    def _normalize_filter_value(self, value: str | None) -> str:
+        if value is None:
+            return ""
+        normalized = value.strip()
+        if normalized in {"", "all", "全部", "全部类型", "全部状态"}:
+            return ""
+        return normalized

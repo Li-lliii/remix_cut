@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 
 from platform_app.modules.digital_humans.repository import DigitalHumanAssetRepository
@@ -46,8 +46,18 @@ async def _read_optional_upload(upload: UploadFile | None):
 
 
 @router.get("")
-def list_digital_humans():
-    return {"items": build_service().list_digital_humans()}
+def list_digital_humans(
+    search: str | None = Query(default=None, description="按名称、科室、机构、讲者、标签、简介搜索"),
+    keyword: str | None = Query(default=None, description="search 的兼容别名"),
+    avatar_type: str | None = Query(default=None, description="形象类型筛选，例如 real/anime"),
+    type_filter: str | None = Query(default=None, alias="type", description="avatar_type 的兼容别名"),
+    status: str | None = Query(default=None, description="状态筛选，支持 active/training/failed 或原始状态"),
+):
+    return build_service().list_digital_human_library(
+        search=search or keyword,
+        avatar_type=avatar_type or type_filter,
+        status=status,
+    )
 
 
 @router.post("/create-avatar")
