@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+if [[ ! -f .env ]]; then
+  cp .env.example .env
+  echo "已根据 .env.example 创建 .env，请按服务器实际地址检查 ComfyUI/ASR/TTS 配置。"
+fi
+
+docker compose up -d --build
+
+echo "平台服务启动中：http://localhost:7028"
+echo "MinIO 控制台：http://localhost:9001"
+echo "RabbitMQ 控制台：http://localhost:15672"

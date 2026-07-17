@@ -1,0 +1,15 @@
+.git
+.idea
+.venv
+.pytest_cache
+__pycache__
+*.pyc
+.DS_Store
+
+metahuman_platform/data
+metahuman_platform/uploads
+metahuman_platform/work
+metahuman_platform/logs
+output
+
+.env
