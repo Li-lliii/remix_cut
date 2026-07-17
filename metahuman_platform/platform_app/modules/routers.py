@@ -1,4 +1,6 @@
+from platform_app.modules.ai_transforms.api import router as ai_transforms_router
 from platform_app.modules.digital_humans.api import router as digital_humans_router
+from platform_app.modules.materials.api import router as materials_router
 from platform_app.api.final_videos import router as final_videos_router
 from platform_app.api.lip_sync import router as lip_sync_router
 from platform_app.api.product_docs import router as product_docs_router
@@ -12,6 +14,8 @@ def get_api_routers():
     return [
         roles_router,
         product_docs_router,
+        materials_router,
+        ai_transforms_router,
         digital_humans_router,
         videos_router,
         remix_router,

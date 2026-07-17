@@ -57,9 +57,9 @@ run:
 
 # Comfyui配置文件
 comfyui:
-  server_address: "127.0.0.1:7040"
-  workflow_path: "/home/kemove/zhouzhibiao/bs_media/.worktrees/phase2-remix-minimal-loop/function/remix_cut/workstream/bs_media_metahuman_no_scale_up.json"
-  input_dir: "/home/kemove/zhouzhibiao/ComfyUI/input"
-  output_dir: "/home/kemove/zhouzhibiao/bs_media/.worktrees/phase2-remix-minimal-loop/function/remix_cut/test_results"
+  server_address: "host.docker.internal:7040"
+  # workflow_path: "/home/kemove/zhouzhibiao/bs_media/.worktrees/phase2-remix-minimal-loop/function/remix_cut/workstream/bs_media_metahuman_no_scale_up.json"
+  input_dir: "/home/kemove/yinqiaoqiao/ComfyUI/input"
+  output_dir: "/home/kemove/liwenmin/AI-Human/bs_media/.worktrees/main-release/function/remix_cut/output/ai_transforms"
   
   

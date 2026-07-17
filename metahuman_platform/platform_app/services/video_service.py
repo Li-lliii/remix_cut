@@ -1,11 +1,10 @@
 import json
-import shutil
 import subprocess
 import sys
-import uuid
 from pathlib import Path
 from typing import Any
 
+from platform_app.modules.materials.service import MaterialService
 from platform_app.repositories.asr_repository import AsrRepository
 from platform_app.repositories.video_repository import VideoRepository
 from platform_app.services.asr_adapter import AsrAdapter, AsrAdapterError, infer_aspect_ratio, probe_duration
@@ -29,30 +28,21 @@ class VideoService:
         if not self.uploads_dir:
             raise RuntimeError("uploads_dir 未配置")
 
-        video_id = str(uuid.uuid4())
-        extension = Path(filename).suffix or ".mp4"
-        target_dir = self.uploads_dir / "roles" / role_id / video_id
-        try:
-            target_dir.mkdir(parents=True, exist_ok=True)
-            file_path = target_dir / f"source{extension}"
-            file_path.write_bytes(content)
-
-            duration_sec = probe_duration(file_path)
-            aspect_ratio = infer_aspect_ratio(file_path)
-
-            video = self.video_repository.create(
-                video_id=video_id,
-                role_id=role_id,
-                title=filename,
-                file_path=str(file_path),
-                thumbnail_url="",
-                duration_sec=duration_sec,
-                aspect_ratio=aspect_ratio,
-            )
-            return video
-        except Exception:
-            shutil.rmtree(target_dir, ignore_errors=True)
-            raise
+        material = MaterialService(db_path=self.db_path, uploads_dir=self.uploads_dir).save_original_video(
+            filename=filename,
+            content=content,
+            owner_role_id=role_id,
+            metadata={"source": "role_video_upload"},
+        )
+        return self.video_repository.create(
+            role_id=role_id,
+            material_asset_id=material["id"],
+            title=filename,
+            file_path=material["file_path"],
+            thumbnail_url="",
+            duration_sec=material["duration_sec"],
+            aspect_ratio=material["aspect_ratio"],
+        )
 
     def _load_config(self) -> dict[str, Any]:
         config_path = PROJECT_ROOT / "config.yaml"
@@ -137,7 +127,8 @@ class VideoService:
 
         self.video_repository.update_asr_status(video_id, "running")
         try:
-            result = self.asr_adapter.transcribe(video_path=video["file_path"])
+            video_path = self._materialize_video_for_processing(video)
+            result = self.asr_adapter.transcribe(video_path=str(video_path))
             full_text = result["full_text"].strip()
             segments = result["segments"]
             if not full_text or not segments:
@@ -162,3 +153,12 @@ class VideoService:
         except Exception as exc:
             self.video_repository.update_asr_status(video_id, "failed", str(exc))
             return None
+
+    def _materialize_video_for_processing(self, video: dict) -> Path:
+        if video.get("material_asset_id") and self.uploads_dir:
+            material_service = MaterialService(db_path=self.db_path, uploads_dir=self.uploads_dir)
+            asset = material_service.get_asset(video["material_asset_id"])
+            suffix = Path(asset.get("filename") or "source.mp4").suffix or ".mp4"
+            target_path = self.uploads_dir / "materials" / "_processing" / video["id"] / f"source{suffix}"
+            return material_service.download_asset(asset_id=asset["id"], target_path=target_path)
+        return Path(video["file_path"])

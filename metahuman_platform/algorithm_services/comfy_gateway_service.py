@@ -16,10 +16,13 @@ logger = logging.getLogger(__name__)
 
 class SubmitRequest(BaseModel):
     video_path: str = Field(..., description="原始视频路径")
-    audio_path: str = Field(..., description="音频路径")
+    audio_path: str | None = Field(default=None, description="音频路径")
+    background_image_path: str | None = Field(default=None, description="换背景参考图路径")
     output_dir: str = Field(..., description="输出目录")
     task_type: str | None = Field(default="lip_sync")
     task_id: str | None = Field(default=None)
+    workflow_name: str | None = Field(default=None)
+    params: dict[str, Any] = Field(default_factory=dict)
 
 
 def _default_job_store() -> ComfyJobStore:
@@ -57,12 +60,25 @@ def _backend_ready() -> bool:
 def _submit_to_underlying_job(
     *,
     video_path: str,
-    audio_path: str,
+    audio_path: str | None,
     output_dir: str,
     task_type: str | None = None,
     task_id: str | None = None,
+    background_image_path: str | None = None,
+    workflow_name: str | None = None,
+    params: dict[str, Any] | None = None,
 ) -> str:
-    del task_type, task_id
+    del task_id
+    if task_type == "replace_background":
+        return _submit_replace_background_job(
+            video_path=video_path,
+            background_image_path=background_image_path,
+            output_dir=output_dir,
+            workflow_name=workflow_name,
+            params=params or {},
+        )
+    if not audio_path:
+        raise RuntimeError("视频生成服务提交失败: audio_path 不能为空")
     try:
         comfy_cfg = _load_comfy_config()
         comfy_cfg["output_dir"] = str(Path(output_dir).expanduser().resolve())
@@ -72,6 +88,39 @@ def _submit_to_underlying_job(
         return client.submit_job(video_path, audio_path)
     except Exception as exc:
         raise RuntimeError(f"视频生成服务提交失败: {exc}") from exc
+
+
+def _submit_replace_background_job(
+    *,
+    video_path: str,
+    background_image_path: str | None,
+    output_dir: str,
+    workflow_name: str | None = None,
+    params: dict[str, Any] | None = None,
+) -> str:
+    if not background_image_path:
+        raise RuntimeError("换背景任务缺少 background_image_path")
+    try:
+        from scripts.run_comfyui_workflow import submit_workflow
+
+        workflow_path = str(
+            Path(
+                os.environ.get(
+                    "BS_MEDIA_REPLACE_BACKGROUND_WORKFLOW_PATH",
+                    str(Path(__file__).resolve().parents[2] / "workstream" / "ai_transforms" / "replace_background_api.json"),
+                )
+            ).expanduser().resolve()
+        )
+        return submit_workflow(
+            workflow_path=workflow_path,
+            workflow_name=workflow_name or "ai_transform_replace_background",
+            video_path=video_path,
+            background_image_path=background_image_path,
+            output_dir=output_dir,
+            params=params or {},
+        )
+    except Exception as exc:
+        raise RuntimeError(f"换背景视频生成服务提交失败: {exc}") from exc
 
 
 def _poll_underlying_job(*, prompt_id: str, output_dir: str) -> dict[str, Any]:
@@ -134,11 +183,15 @@ def create_app(
     def submit_job(payload: SubmitRequest) -> dict[str, Any]:
         try:
             logger.info(
-                "stage=comfy_submit_start task_id=%s task_type=%s video_path=%s audio_path=%s output_dir=%s",
+                (
+                    "stage=comfy_submit_start task_id=%s task_type=%s video_path=%s "
+                    "audio_path=%s background_image_path=%s output_dir=%s"
+                ),
                 payload.task_id,
                 payload.task_type,
                 payload.video_path,
                 payload.audio_path,
+                payload.background_image_path,
                 payload.output_dir,
             )
             prompt_id = submit_impl(
@@ -147,6 +200,9 @@ def create_app(
                 output_dir=payload.output_dir,
                 task_type=payload.task_type,
                 task_id=payload.task_id,
+                background_image_path=payload.background_image_path,
+                workflow_name=payload.workflow_name,
+                params=payload.params,
             )
             if not prompt_id:
                 raise RuntimeError("视频生成服务提交失败: 未返回 prompt_id")
@@ -156,9 +212,11 @@ def create_app(
                     "prompt_id": prompt_id,
                     "video_path": payload.video_path,
                     "audio_path": payload.audio_path,
+                    "background_image_path": payload.background_image_path,
                     "output_dir": str(Path(payload.output_dir).expanduser().resolve()),
                     "task_type": payload.task_type,
                     "task_id": payload.task_id,
+                    "workflow_name": payload.workflow_name,
                     "status": "submitted",
                     "message": "submitted",
                 }

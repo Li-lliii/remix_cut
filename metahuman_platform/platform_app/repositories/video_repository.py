@@ -9,6 +9,7 @@ class VideoRepository(BaseRepository):
         self,
         *,
         role_id: str,
+        material_asset_id: str = "",
         title: str,
         file_path: str,
         thumbnail_url: str,
@@ -22,13 +23,14 @@ class VideoRepository(BaseRepository):
             connection.execute(
                 """
                 INSERT INTO role_videos (
-                    id, role_id, title, file_path, thumbnail_url, duration_sec, aspect_ratio,
+                    id, role_id, material_asset_id, title, file_path, thumbnail_url, duration_sec, aspect_ratio,
                     is_pinned, uploaded_at, deleted_at, asr_status, asr_error_message
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, NULL, 'pending', NULL)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, NULL, 'pending', NULL)
                 """,
                 (
                     video_id,
                     role_id,
+                    material_asset_id,
                     title,
                     file_path,
                     thumbnail_url,

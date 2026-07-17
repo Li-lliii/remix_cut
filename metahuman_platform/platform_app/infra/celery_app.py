@@ -35,7 +35,10 @@ def create_celery_app():
         "bs_media",
         broker=settings.celery_broker_url,
         backend=settings.celery_result_backend,
-        include=["platform_app.modules.digital_humans.tasks"],
+        include=[
+            "platform_app.modules.digital_humans.tasks",
+            "platform_app.modules.ai_transforms.tasks",
+        ],
     )
     app.conf.update(task_track_started=True, task_serializer="json", result_serializer="json", accept_content=["json"])
     return app

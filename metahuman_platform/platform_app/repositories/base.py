@@ -15,7 +15,15 @@ def row_to_dict(row):
     data = dict(row)
     if "tags" in data and isinstance(data["tags"], str):
         data["tags"] = json.loads(data["tags"])
-    for field in ("tags_json", "metadata_json", "result_asset_ids_json", "input_asset_keys_json", "params_json"):
+    for field in (
+        "tags_json",
+        "metadata_json",
+        "result_asset_ids_json",
+        "input_asset_keys_json",
+        "input_params_json",
+        "params_json",
+        "operations_json",
+    ):
         if field in data and isinstance(data[field], str):
             data[field] = json.loads(data[field])
     for field in ("is_pinned", "is_max_mode", "subtitle_enabled", "is_selected", "is_edited"):

@@ -2,9 +2,10 @@ import mimetypes
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 
+from platform_app.modules.materials.service import MaterialService
 from platform_app.repositories.asr_repository import AsrRepository
 from platform_app.repositories.role_repository import RoleRepository
 from platform_app.services.background_runner import run_in_background
@@ -130,6 +131,14 @@ async def stream_video(video_id: str):
     video = repository.get(video_id)#查视频记录
     if video is None:
         raise HTTPException(status_code=404, detail="视频不存在")
+    if video.get("material_asset_id"):
+        material_service = MaterialService(db_path=settings.database_path, uploads_dir=settings.uploads_dir)
+        try:
+            asset = material_service.get_asset(video["material_asset_id"])
+            if asset.get("storage_backend") == "minio" and asset.get("storage_key"):
+                return RedirectResponse(material_service.result_download_url(asset))
+        except Exception:
+            pass
     #检查数据库里记录的文件是否存在
     file_path = Path(video["file_path"])
     if not file_path.exists():

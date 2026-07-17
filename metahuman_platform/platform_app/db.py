@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS roles (
 CREATE TABLE IF NOT EXISTS role_videos (
     id TEXT PRIMARY KEY,
     role_id TEXT NOT NULL,
+    material_asset_id TEXT NOT NULL DEFAULT '',
     title TEXT NOT NULL,
     file_path TEXT NOT NULL,
     thumbnail_url TEXT NOT NULL DEFAULT '',
@@ -27,6 +28,32 @@ CREATE TABLE IF NOT EXISTS role_videos (
     asr_status TEXT NOT NULL DEFAULT 'pending',
     asr_error_message TEXT,
     FOREIGN KEY (role_id) REFERENCES roles(id)
+);
+
+CREATE TABLE IF NOT EXISTS material_assets (
+    id TEXT PRIMARY KEY,
+    asset_type TEXT NOT NULL,
+    partition_name TEXT NOT NULL,
+    source_type TEXT NOT NULL DEFAULT 'user_upload',
+    visibility TEXT NOT NULL DEFAULT 'private',
+    owner_user_id TEXT NOT NULL DEFAULT '',
+    owner_role_id TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL DEFAULT '',
+    filename TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    content_type TEXT NOT NULL DEFAULT '',
+    storage_backend TEXT NOT NULL DEFAULT 'local',
+    storage_key TEXT NOT NULL DEFAULT '',
+    duration_sec REAL NOT NULL DEFAULT 0,
+    aspect_ratio TEXT NOT NULL DEFAULT 'unknown',
+    width INTEGER NOT NULL DEFAULT 0,
+    height INTEGER NOT NULL DEFAULT 0,
+    tags_json TEXT NOT NULL DEFAULT '[]',
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT '',
+    deleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS video_asr_results (
@@ -293,6 +320,40 @@ CREATE TABLE IF NOT EXISTS digital_human_generation_tasks (
     finished_at TEXT,
     FOREIGN KEY (digital_human_id) REFERENCES digital_humans(id)
 );
+
+CREATE TABLE IF NOT EXISTS ai_transform_tasks (
+    id TEXT PRIMARY KEY,
+    role_id TEXT NOT NULL,
+    source_video_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    operations_json TEXT NOT NULL DEFAULT '[]',
+    input_asset_keys_json TEXT NOT NULL DEFAULT '{}',
+    params_json TEXT NOT NULL DEFAULT '{}',
+    output_key TEXT NOT NULL DEFAULT '',
+    error_message TEXT,
+    created_at TEXT NOT NULL,
+    started_at TEXT,
+    finished_at TEXT,
+    deleted_at TEXT,
+    FOREIGN KEY (role_id) REFERENCES roles(id),
+    FOREIGN KEY (source_video_id) REFERENCES role_videos(id)
+);
+
+CREATE TABLE IF NOT EXISTS ai_transform_task_items (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    workflow_name TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    backend_job_id TEXT NOT NULL DEFAULT '',
+    input_params_json TEXT NOT NULL DEFAULT '{}',
+    output_key TEXT NOT NULL DEFAULT '',
+    error_message TEXT,
+    created_at TEXT NOT NULL,
+    started_at TEXT,
+    finished_at TEXT,
+    FOREIGN KEY (task_id) REFERENCES ai_transform_tasks(id)
+);
 """
 
 
@@ -319,6 +380,28 @@ def init_db(db_path: Path) -> None:
             connection.execute("ALTER TABLE remix_tasks ADD COLUMN error_message TEXT")
         if "deleted_at" not in remix_task_columns:
             connection.execute("ALTER TABLE remix_tasks ADD COLUMN deleted_at TEXT")
+        role_video_columns = {
+            row["name"] for row in connection.execute("PRAGMA table_info(role_videos)").fetchall()
+        }
+        if "material_asset_id" not in role_video_columns:
+            connection.execute("ALTER TABLE role_videos ADD COLUMN material_asset_id TEXT NOT NULL DEFAULT ''")
+        material_asset_columns = {
+            row["name"] for row in connection.execute("PRAGMA table_info(material_assets)").fetchall()
+        }
+        material_asset_add_columns = {
+            "source_type": "TEXT NOT NULL DEFAULT 'user_upload'",
+            "visibility": "TEXT NOT NULL DEFAULT 'private'",
+            "owner_user_id": "TEXT NOT NULL DEFAULT ''",
+            "title": "TEXT NOT NULL DEFAULT ''",
+            "width": "INTEGER NOT NULL DEFAULT 0",
+            "height": "INTEGER NOT NULL DEFAULT 0",
+            "tags_json": "TEXT NOT NULL DEFAULT '[]'",
+            "status": "TEXT NOT NULL DEFAULT 'active'",
+            "updated_at": "TEXT NOT NULL DEFAULT ''",
+        }
+        for column_name, column_definition in material_asset_add_columns.items():
+            if column_name not in material_asset_columns:
+                connection.execute(f"ALTER TABLE material_assets ADD COLUMN {column_name} {column_definition}")
         preprocess_job_columns = {
             row["name"] for row in connection.execute("PRAGMA table_info(video_preprocess_jobs)").fetchall()
         }
