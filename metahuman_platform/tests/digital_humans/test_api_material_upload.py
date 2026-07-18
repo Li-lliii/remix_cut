@@ -34,6 +34,26 @@ class FakeStorage:
         return target_path
 
 
+class FakeMaterialStorage:
+    objects = {}
+
+    def __init__(self, *args, **kwargs):
+        del args, kwargs
+
+    def upload_file(self, object_key, source_path, *, content_type="application/octet-stream"):
+        del content_type
+        self.objects[object_key] = source_path.read_bytes()
+        return object_key
+
+    def presigned_get_url(self, object_key):
+        return f"https://minio.test/{object_key}"
+
+    def download_file(self, object_key, target_path):
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        target_path.write_bytes(self.objects[object_key])
+        return target_path
+
+
 class FakeComfyAdapter:
     def __init__(self, *args, **kwargs):
         del args, kwargs
@@ -79,6 +99,55 @@ async def test_create_from_materials_api_stores_metadata_and_minio_asset(tmp_pat
 
 
 @pytest.mark.anyio
+async def test_create_from_materials_accepts_platform_material_ids(tmp_path, monkeypatch):
+    db_path = tmp_path / "app.db"
+    monkeypatch.setenv("BS_MEDIA_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BS_MEDIA_DATABASE_URL", f"sqlite:///{db_path}")
+    monkeypatch.setenv("BS_MEDIA_UPLOADS_DIR", str(tmp_path / "uploads"))
+    monkeypatch.setenv("BS_MEDIA_PLATFORM_LOG_FILE", str(tmp_path / "platform.log"))
+    monkeypatch.setenv("BS_MEDIA_DEFAULT_ASR_MODE", "mock")
+    monkeypatch.setattr("platform_app.modules.digital_humans.service.DigitalHumanStorage", FakeStorage)
+    monkeypatch.setattr("platform_app.modules.digital_humans.service.DigitalHumanComfyAdapter", FakeComfyAdapter)
+    monkeypatch.setattr("platform_app.modules.materials.service.MinioObjectStorage", FakeMaterialStorage)
+
+    async with app_client() as client:
+        video = await client.post(
+            "/api/materials/digital-human/videos/upload",
+            files={"video": ("talk.mp4", b"material-video", "video/mp4")},
+        )
+        image = await client.post(
+            "/api/materials/digital-human/images/upload",
+            files={"image": ("person.png", b"material-image", "image/png")},
+        )
+        audio = await client.post(
+            "/api/materials/digital-human/audios/upload",
+            files={"audio": ("voice.mp3", b"material-audio", "audio/mpeg")},
+        )
+        response = await client.post(
+            "/api/digital-humans/create-from-materials",
+            data={
+                "name": "平台素材数字人",
+                "avatar_type": "real",
+                "department": "素材部门",
+                "talking_video_material_id": video.json()["id"],
+                "person_image_material_id": image.json()["id"],
+                "voice_sample_material_id": audio.json()["id"],
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assets = {asset["asset_type"]: asset for asset in payload["assets"]}
+    assert set(assets) == {"talking_video", "person_image", "voice_sample"}
+    assert assets["talking_video"]["storage_key"] == video.json()["storage_key"]
+    assert assets["person_image"]["storage_key"] == image.json()["storage_key"]
+    assert assets["voice_sample"]["storage_key"] == audio.json()["storage_key"]
+    assert assets["talking_video"]["metadata_json"]["source"] == "material_library"
+    assert assets["talking_video"]["metadata_json"]["source_material_asset_id"] == video.json()["id"]
+    assert payload["primary_asset"]["id"] == assets["person_image"]["id"]
+
+
+@pytest.mark.anyio
 async def test_submit_comfyui_api_records_backend_job_id(tmp_path, monkeypatch):
     db_path = tmp_path / "app.db"
     monkeypatch.setenv("BS_MEDIA_DATA_DIR", str(tmp_path))
@@ -107,4 +176,3 @@ async def test_submit_comfyui_api_records_backend_job_id(tmp_path, monkeypatch):
     assert payload["task"]["status"] == "submitted"
     assert payload["task"]["backend_job_id"] == "prompt-api-123"
     assert payload["comfyui"]["backend_job_id"] == "prompt-api-123"
-

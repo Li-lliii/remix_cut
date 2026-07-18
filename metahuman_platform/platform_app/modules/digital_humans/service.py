@@ -14,6 +14,13 @@ from platform_app.modules.digital_humans.repository import (
 from platform_app.modules.digital_humans.comfy_adapter import DigitalHumanComfyAdapter
 from platform_app.modules.digital_humans.progress import DigitalHumanProgress
 from platform_app.modules.digital_humans.storage import DigitalHumanStorage, UploadObjectSpec
+from platform_app.modules.materials.constants import (
+    ASSET_TYPE_AUDIO,
+    ASSET_TYPE_IMAGE,
+    ASSET_TYPE_VIDEO,
+    DIGITAL_HUMAN_CREATION_PARTITION,
+)
+from platform_app.modules.materials.service import MaterialService
 
 
 class DigitalHumanService:
@@ -92,6 +99,36 @@ class DigitalHumanService:
             metadata={"source": "create_from_materials"},
         )
 
+    def _save_asset_from_material(
+        self,
+        *,
+        digital_human_id: str,
+        digital_human_asset_type: str,
+        material_asset_id: str,
+        expected_material_type: str,
+    ):
+        material_service = MaterialService(db_path=self.db_path, uploads_dir=self.uploads_dir)
+        material = material_service.get_asset(material_asset_id)
+        if material.get("partition_name") != DIGITAL_HUMAN_CREATION_PARTITION:
+            raise ValueError("请选择创建数字人素材库中的素材")
+        if material.get("asset_type") != expected_material_type:
+            raise ValueError(f"素材类型不匹配，需要 {expected_material_type}")
+        return self.asset_repository.create(
+            digital_human_id=digital_human_id,
+            asset_type=digital_human_asset_type,
+            filename=material.get("filename") or f"{digital_human_asset_type}",
+            file_path=material.get("file_path") or "",
+            content_type=material.get("content_type") or "application/octet-stream",
+            storage_backend=material.get("storage_backend") or "minio",
+            storage_key=material.get("storage_key") or "",
+            metadata={
+                "source": "material_library",
+                "source_material_asset_id": material["id"],
+                "source_material_partition": material.get("partition_name"),
+                "source_material_type": material.get("asset_type"),
+            },
+        )
+
     def _build_training_prompt(
         self,
         *,
@@ -128,9 +165,12 @@ class DigitalHumanService:
         tags: str,
         style: str,
         description: str,
-        talking_video: tuple[str, bytes, str],
+        talking_video: tuple[str, bytes, str] | None = None,
         person_image: tuple[str, bytes, str] | None = None,
         voice_sample: tuple[str, bytes, str] | None = None,
+        talking_video_material_id: str = "",
+        person_image_material_id: str = "",
+        voice_sample_material_id: str = "",
     ):
         name = name.strip()
         avatar_type = avatar_type.strip()
@@ -141,7 +181,9 @@ class DigitalHumanService:
             raise ValueError("形象类型必填")
         if not department:
             raise ValueError("所属科室/部门必填")
-        if not talking_video[1]:
+        if talking_video is None and not talking_video_material_id:
+            raise ValueError("口播视频必填")
+        if talking_video is not None and not talking_video[1]:
             raise ValueError("talking_video 文件为空")
 
         digital_human = self.digital_human_repository.create(
@@ -162,17 +204,33 @@ class DigitalHumanService:
             metadata={"source_type": "material_avatar_training"},
         )
 
-        assets = [
-            self._save_asset(
+        if talking_video_material_id:
+            talking_video_asset = self._save_asset_from_material(
+                digital_human_id=digital_human["id"],
+                digital_human_asset_type="talking_video",
+                material_asset_id=talking_video_material_id,
+                expected_material_type=ASSET_TYPE_VIDEO,
+            )
+        else:
+            assert talking_video is not None
+            talking_video_asset = self._save_asset(
                 digital_human_id=digital_human["id"],
                 asset_type="talking_video",
                 filename=talking_video[0],
                 content=talking_video[1],
                 content_type=talking_video[2],
             )
-        ]
+        assets = [talking_video_asset]
         primary_asset = None
-        if person_image is not None:
+        if person_image_material_id:
+            primary_asset = self._save_asset_from_material(
+                digital_human_id=digital_human["id"],
+                digital_human_asset_type="person_image",
+                material_asset_id=person_image_material_id,
+                expected_material_type=ASSET_TYPE_IMAGE,
+            )
+            assets.append(primary_asset)
+        elif person_image is not None:
             primary_asset = self._save_asset(
                 digital_human_id=digital_human["id"],
                 asset_type="person_image",
@@ -181,7 +239,16 @@ class DigitalHumanService:
                 content_type=person_image[2],
             )
             assets.append(primary_asset)
-        if voice_sample is not None:
+        if voice_sample_material_id:
+            assets.append(
+                self._save_asset_from_material(
+                    digital_human_id=digital_human["id"],
+                    digital_human_asset_type="voice_sample",
+                    material_asset_id=voice_sample_material_id,
+                    expected_material_type=ASSET_TYPE_AUDIO,
+                )
+            )
+        elif voice_sample is not None:
             assets.append(
                 self._save_asset(
                     digital_human_id=digital_human["id"],

@@ -38,9 +38,12 @@ async def _read_optional_upload(upload: UploadFile | None):
 @router.post("/create-avatar")
 @router.post("/create-from-materials")
 async def create_digital_human_avatar(
-    talking_video: UploadFile = File(..., description="口播视频，建议 3-5 分钟，MP4/MOV/AVI"),
+    talking_video: UploadFile | None = File(default=None, description="口播视频，建议 3-5 分钟，MP4/MOV/AVI"),
     person_image: UploadFile | None = File(default=None, description="人物图片，可选"),
     voice_sample: UploadFile | None = File(default=None, description="声音样本，可选"),
+    talking_video_material_id: str = Form("", description="平台素材库中的视频素材 ID"),
+    person_image_material_id: str = Form("", description="平台素材库中的图片素材 ID"),
+    voice_sample_material_id: str = Form("", description="平台素材库中的音频素材 ID"),
     name: str = Form(..., description="数字人名称"),
     avatar_type: str = Form(..., description="形象类型"),
     gender: str = Form("", description="性别"),
@@ -51,7 +54,7 @@ async def create_digital_human_avatar(
     style: str = Form("", description="形象风格"),
     description: str = Form("", description="个人简介/形象描述"),
 ):
-    video_content = await talking_video.read()
+    video_upload = await _read_optional_upload(talking_video)
     try:
         return build_service().create_avatar_training_task(
             name=name,
@@ -63,13 +66,12 @@ async def create_digital_human_avatar(
             tags=tags,
             style=style,
             description=description,
-            talking_video=(
-                talking_video.filename or "talking_video.mp4",
-                video_content,
-                talking_video.content_type or "application/octet-stream",
-            ),
+            talking_video=video_upload,
             person_image=await _read_optional_upload(person_image),
             voice_sample=await _read_optional_upload(voice_sample),
+            talking_video_material_id=talking_video_material_id.strip(),
+            person_image_material_id=person_image_material_id.strip(),
+            voice_sample_material_id=voice_sample_material_id.strip(),
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

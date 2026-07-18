@@ -130,3 +130,56 @@ async def test_background_images_support_mine_public_and_available_scopes(tmp_pa
     assert [item["id"] for item in mine_list.json()["items"]] == [mine_asset["id"]]
     assert [item["id"] for item in public_list.json()["items"]] == [public_asset["id"]]
     assert {item["id"] for item in available.json()["items"]} == {mine_asset["id"], public_asset["id"]}
+
+
+@pytest.mark.anyio
+async def test_digital_human_creation_materials_support_video_image_and_audio(tmp_path, monkeypatch):
+    monkeypatch.setenv("BS_MEDIA_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BS_MEDIA_UPLOADS_DIR", str(tmp_path / "uploads"))
+    monkeypatch.setenv("BS_MEDIA_DEFAULT_ASR_MODE", "mock")
+    monkeypatch.setattr("platform_app.modules.materials.service.MinioObjectStorage", FakeMinioObjectStorage)
+
+    async with app_client() as client:
+        video = await client.post(
+            "/api/materials/digital-human/videos/upload",
+            params={"owner_user_id": "user-1", "title": "训练视频"},
+            files={"video": ("talk.mp4", b"fake-video", "video/mp4")},
+        )
+        image = await client.post(
+            "/api/materials/digital-human/images/upload",
+            params={"owner_user_id": "user-1", "title": "人物图片"},
+            files={"image": ("person.png", b"fake-image", "image/png")},
+        )
+        audio = await client.post(
+            "/api/materials/digital-human/audios/upload",
+            params={"owner_user_id": "user-1", "title": "声音样本"},
+            files={"audio": ("voice.mp3", b"fake-audio", "audio/mpeg")},
+        )
+        videos = await client.get(
+            "/api/materials/digital-human/videos",
+            params={"scope": "mine", "owner_user_id": "user-1"},
+        )
+        images = await client.get(
+            "/api/materials/digital-human/images",
+            params={"scope": "mine", "owner_user_id": "user-1"},
+        )
+        audios = await client.get(
+            "/api/materials/digital-human/audios",
+            params={"scope": "mine", "owner_user_id": "user-1"},
+        )
+
+    assert video.status_code == 200
+    assert image.status_code == 200
+    assert audio.status_code == 200
+    assert video.json()["asset_type"] == "video"
+    assert image.json()["asset_type"] == "image"
+    assert audio.json()["asset_type"] == "audio"
+    assert video.json()["partition_name"] == "digital_human_creation"
+    assert image.json()["partition_name"] == "digital_human_creation"
+    assert audio.json()["partition_name"] == "digital_human_creation"
+    assert video.json()["storage_key"].startswith("materials/digital_human_creation/video/private/user-1/")
+    assert image.json()["storage_key"].startswith("materials/digital_human_creation/image/private/user-1/")
+    assert audio.json()["storage_key"].startswith("materials/digital_human_creation/audio/private/user-1/")
+    assert [item["id"] for item in videos.json()["items"]] == [video.json()["id"]]
+    assert [item["id"] for item in images.json()["items"]] == [image.json()["id"]]
+    assert [item["id"] for item in audios.json()["items"]] == [audio.json()["id"]]

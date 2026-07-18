@@ -6,7 +6,15 @@ from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 
-from platform_app.modules.materials.service import BACKGROUND_IMAGE_PARTITION, ORIGINAL_VIDEO_PARTITION, MaterialService
+from platform_app.modules.materials.constants import (
+    ASSET_TYPE_AUDIO,
+    ASSET_TYPE_IMAGE,
+    ASSET_TYPE_VIDEO,
+    BACKGROUND_IMAGE_PARTITION,
+    DIGITAL_HUMAN_CREATION_PARTITION,
+    ORIGINAL_VIDEO_PARTITION,
+)
+from platform_app.modules.materials.service import MaterialService
 from platform_app.settings import get_settings
 
 
@@ -20,6 +28,10 @@ def build_service() -> MaterialService:
 
 def _parse_tags(raw: str = "") -> list[str]:
     return [item.strip() for item in raw.replace("，", ",").split(",") if item.strip()]
+
+
+def _source_type_for_visibility(visibility: str) -> str:
+    return "platform_builtin" if visibility == "public" else "user_upload"
 
 
 @router.post("/original-videos/upload")
@@ -39,7 +51,7 @@ async def upload_original_video(
             owner_user_id=owner_user_id,
             owner_role_id=role_id,
             visibility=visibility,
-            source_type="platform_builtin" if visibility == "public" else "user_upload",
+            source_type=_source_type_for_visibility(visibility),
             title=title,
             tags=_parse_tags(tags),
             metadata={"source": "materials_upload"},
@@ -65,7 +77,7 @@ async def upload_background_image(
             content=content,
             owner_user_id=owner_user_id,
             visibility=visibility,
-            source_type="platform_builtin" if visibility == "public" else "user_upload",
+            source_type=_source_type_for_visibility(visibility),
             title=title,
             tags=_parse_tags(tags),
             metadata={"source": "background_image_upload"},
@@ -74,6 +86,75 @@ async def upload_background_image(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"上传背景图失败: {exc}") from exc
+
+
+@router.post("/digital-human/videos/upload")
+async def upload_digital_human_video_material(
+    video: UploadFile = File(...),
+    owner_user_id: str = Query(default="", description="可选，当前用户 ID"),
+    visibility: str = Query(default="private", description="private/public"),
+    title: str = Query(default="", description="素材展示名称"),
+    tags: str = Query(default="", description="逗号分隔标签"),
+):
+    try:
+        return build_service().save_digital_human_video(
+            filename=video.filename or "source.mp4",
+            content=await video.read(),
+            owner_user_id=owner_user_id,
+            visibility=visibility,
+            title=title,
+            tags=_parse_tags(tags),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"上传创建数字人视频素材失败: {exc}") from exc
+
+
+@router.post("/digital-human/images/upload")
+async def upload_digital_human_image_material(
+    image: UploadFile = File(...),
+    owner_user_id: str = Query(default="", description="可选，当前用户 ID"),
+    visibility: str = Query(default="private", description="private/public"),
+    title: str = Query(default="", description="素材展示名称"),
+    tags: str = Query(default="", description="逗号分隔标签"),
+):
+    try:
+        return build_service().save_digital_human_image(
+            filename=image.filename or "source.png",
+            content=await image.read(),
+            owner_user_id=owner_user_id,
+            visibility=visibility,
+            title=title,
+            tags=_parse_tags(tags),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"上传创建数字人图片素材失败: {exc}") from exc
+
+
+@router.post("/digital-human/audios/upload")
+async def upload_digital_human_audio_material(
+    audio: UploadFile = File(...),
+    owner_user_id: str = Query(default="", description="可选，当前用户 ID"),
+    visibility: str = Query(default="private", description="private/public"),
+    title: str = Query(default="", description="素材展示名称"),
+    tags: str = Query(default="", description="逗号分隔标签"),
+):
+    try:
+        return build_service().save_digital_human_audio(
+            filename=audio.filename or "source.mp3",
+            content=await audio.read(),
+            owner_user_id=owner_user_id,
+            visibility=visibility,
+            title=title,
+            tags=_parse_tags(tags),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"上传创建数字人音频素材失败: {exc}") from exc
 
 
 @router.get("")
@@ -116,6 +197,45 @@ def list_background_images(
     return build_service().list_assets(
         asset_type="image",
         partition_name=BACKGROUND_IMAGE_PARTITION,
+        scope=scope,
+        owner_user_id=owner_user_id,
+    )
+
+
+@router.get("/digital-human/videos")
+def list_digital_human_video_materials(
+    owner_user_id: str | None = Query(default=None),
+    scope: str | None = Query(default="available", description="mine/public/available"),
+):
+    return build_service().list_assets(
+        asset_type=ASSET_TYPE_VIDEO,
+        partition_name=DIGITAL_HUMAN_CREATION_PARTITION,
+        scope=scope,
+        owner_user_id=owner_user_id,
+    )
+
+
+@router.get("/digital-human/images")
+def list_digital_human_image_materials(
+    owner_user_id: str | None = Query(default=None),
+    scope: str | None = Query(default="available", description="mine/public/available"),
+):
+    return build_service().list_assets(
+        asset_type=ASSET_TYPE_IMAGE,
+        partition_name=DIGITAL_HUMAN_CREATION_PARTITION,
+        scope=scope,
+        owner_user_id=owner_user_id,
+    )
+
+
+@router.get("/digital-human/audios")
+def list_digital_human_audio_materials(
+    owner_user_id: str | None = Query(default=None),
+    scope: str | None = Query(default="available", description="mine/public/available"),
+):
+    return build_service().list_assets(
+        asset_type=ASSET_TYPE_AUDIO,
+        partition_name=DIGITAL_HUMAN_CREATION_PARTITION,
         scope=scope,
         owner_user_id=owner_user_id,
     )

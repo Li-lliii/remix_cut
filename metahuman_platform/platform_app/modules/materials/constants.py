@@ -1,0 +1,10 @@
+ASSET_TYPE_VIDEO = "video"
+ASSET_TYPE_IMAGE = "image"
+ASSET_TYPE_AUDIO = "audio"
+
+ORIGINAL_VIDEO_PARTITION = "original_videos"
+BACKGROUND_IMAGE_PARTITION = "background_images"
+DIGITAL_HUMAN_CREATION_PARTITION = "digital_human_creation"
+
+VISIBILITY_PRIVATE = "private"
+VISIBILITY_PUBLIC = "public"
