@@ -16,10 +16,10 @@
 用户 / 前端
   |
   v
-api.py
+create_api.py / archive_api.py / api.py
   |
   v
-service.py
+create_service.py / archive_service.py / service.py
   |
   +--> repository.py  -> SQLite / PostgreSQL
   +--> storage.py     -> MinIO
@@ -28,13 +28,77 @@ service.py
   +--> tasks.py       -> Celery
 ```
 
+“创建数字人”和“数字人档案中心”都放在 `modules/digital_humans/` 内，不新建同级模块。原因是它们的核心对象仍然是数字人，上传的训练素材、原视频、原音频、原图片都按 `digital_human_id` 归属到同一个数字人下面。
+
+当前功能文件：
+
+```text
+modules/digital_humans/
+  create_api.py       -> 创建数字人/上传训练素材 HTTP 接口
+  create_service.py   -> 创建数字人域服务入口
+  archive_api.py      -> 数字人档案中心 HTTP 接口
+  archive_service.py  -> 档案素材上传、列表、详情聚合
+  api.py              -> 数字人库、详情、生成任务、素材预览等通用接口
+  service.py          -> 通用数字人业务编排
+```
+
+创建和档案中心复用已有文件：
+
+```text
+modules/digital_humans/
+  repository.py       -> 复用 digital_humans / digital_human_profiles / digital_human_assets
+  storage.py          -> 复用 MinIO 上传和预签名下载能力
+```
+
+### create_api.py
+
+创建数字人路由层。
+
+职责：
+
+- 定义 `POST /api/digital-humans/create-from-materials`。
+- 定义 `POST /api/digital-humans/create-avatar` 兼容入口。
+- 读取 multipart form 和上传文件。
+- 调用 `DigitalHumanCreateService`。
+
+### create_service.py
+
+创建数字人域服务入口。
+
+职责：
+
+- 当前复用 `DigitalHumanService.create_avatar_training_task`。
+- 后续真实训练回调、模型结果入库、创建态状态机可以逐步迁移到这里。
+- 目的是避免主 `service.py` 继续膨胀。
+
+### archive_api.py
+
+数字人档案中心路由层。
+
+职责：
+
+- 定义档案列表、档案详情、原视频/原音频/原图片上传接口。
+- 读取上传文件。
+- 调用 `DigitalHumanArchiveService`。
+
+### archive_service.py
+
+数字人档案中心业务层。
+
+职责：
+
+- 按数字人聚合档案素材。
+- 将创建数字人时上传的训练素材映射到统一档案分组。
+- 上传档案素材到 MinIO。
+- 写入 `digital_human_assets`。
+
 ### api.py
 
 FastAPI 路由层。
 
 职责：
 
-- 定义 HTTP 接口。
+- 定义数字人库、详情、任务、素材预览等通用 HTTP 接口。
 - 读取 query、form、file、json 参数。
 - 调用 `DigitalHumanService`。
 - 将业务异常转换成 HTTP 错误。
@@ -87,6 +151,35 @@ FastAPI 路由层。
 - 将 MinIO 对象下载到本地临时目录。
 
 注意：视频、图片、音频这类大文件不直接存数据库，数据库只保存 MinIO 的 `storage_key`。
+
+档案中心使用独立的档案 key，避免同一个数字人重复上传同类素材时覆盖旧文件：
+
+```text
+digital-humans/{digital_human_id}/archive/{asset_type}/{upload_id}/source.ext
+```
+
+其中 `asset_type` 当前支持：
+
+| asset_type | 说明 |
+| --- | --- |
+| `source_video` | 数字人原始视频 |
+| `source_audio` | 数字人原始音频 |
+| `source_image` | 数字人人物/参考图片 |
+
+`upload_id` 是后端生成的唯一 ID，用来保留多次上传历史。
+
+档案中心详情会把创建数字人时上传的训练素材映射到统一分组，方便前端按“原视频/原音频/原图片”展示：
+
+| 数据库原始 `asset_type` | 档案返回分组 |
+| --- | --- |
+| `talking_video` | `source_video` |
+| `voice_sample` | `source_audio` |
+| `person_image` | `source_image` |
+| `source_video` | `source_video` |
+| `source_audio` | `source_audio` |
+| `source_image` | `source_image` |
+
+返回的单条素材仍保留原始 `asset_type`，并额外返回 `archive_asset_type` 表示归一化后的档案类型。
 
 ### comfy_adapter.py
 
@@ -316,6 +409,165 @@ GET /api/digital-humans/{digital_human_id}
 
 适合详情页、编辑页、调试任务状态使用。
 
+### 3.1 数字人档案中心列表
+
+```http
+GET /api/digital-human-archive
+```
+
+作用：
+
+- 返回所有已创建数字人的档案列表。
+- 每个数字人返回基础信息、profile、档案素材数量。
+- 用于“数字人档案中心”的首页或左侧列表。
+
+返回结构核心字段：
+
+```json
+{
+  "items": [
+    {
+      "digital_human": {
+        "id": "数字人ID",
+        "name": "李医生",
+        "avatar_type": "real",
+        "status": "active"
+      },
+      "profile": {
+        "department": "心内科",
+        "speaker_name": "李医生"
+      },
+      "asset_counts": {
+        "source_video": 1,
+        "source_audio": 1,
+        "source_image": 1
+      },
+      "latest_asset_at": "最近上传时间"
+    }
+  ],
+  "total_count": 1
+}
+```
+
+### 3.2 数字人档案详情
+
+```http
+GET /api/digital-human-archive/{digital_human_id}
+```
+
+作用：
+
+- 点击某个数字人后查看档案详情。
+- 返回该数字人的基础信息、profile、原视频、原音频、原图片。
+- 创建数字人时上传的 `talking_video/person_image/voice_sample` 也会映射到对应档案分组。
+- 同时返回该数字人的生成/训练任务列表，方便详情页后续展示任务状态。
+
+返回结构核心字段：
+
+```json
+{
+  "digital_human": {},
+  "profile": {},
+  "assets": {
+    "source_video": [],
+    "source_audio": [],
+    "source_image": []
+  },
+  "asset_counts": {
+    "source_video": 1,
+    "source_audio": 1,
+    "source_image": 1
+  },
+  "generation_tasks": []
+}
+```
+
+### 3.3 上传数字人原始视频
+
+```http
+POST /api/digital-human-archive/{digital_human_id}/source-video/upload
+```
+
+请求类型：
+
+```text
+multipart/form-data
+```
+
+文件字段：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `video` | 是 | 数字人原始视频 |
+
+示例：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/digital-human-archive/{digital_human_id}/source-video/upload \
+  -F "video=@/path/to/source.mp4;type=video/mp4"
+```
+
+### 3.4 上传数字人原始音频
+
+```http
+POST /api/digital-human-archive/{digital_human_id}/source-audio/upload
+```
+
+文件字段：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `audio` | 是 | 数字人原始音频 |
+
+示例：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/digital-human-archive/{digital_human_id}/source-audio/upload \
+  -F "audio=@/path/to/source.wav;type=audio/wav"
+```
+
+### 3.5 上传数字人人物/参考图片
+
+```http
+POST /api/digital-human-archive/{digital_human_id}/source-image/upload
+```
+
+文件字段：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `image` | 是 | 数字人人物图或参考图 |
+
+示例：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/digital-human-archive/{digital_human_id}/source-image/upload \
+  -F "image=@/path/to/source.png;type=image/png"
+```
+
+三个上传接口都会：
+
+1. 校验数字人是否存在。
+2. 将文件上传到 MinIO。
+3. 在 `digital_human_assets` 写入一条素材记录。
+4. 返回素材记录和 `preview_url`。
+
+素材记录示例：
+
+```json
+{
+  "id": "素材ID",
+  "digital_human_id": "数字人ID",
+  "asset_type": "source_video",
+  "filename": "source.mp4",
+  "storage_backend": "minio",
+  "storage_key": "digital-humans/{digital_human_id}/archive/source_video/{upload_id}/source.mp4",
+  "file_path": "minio://bs-media/digital-humans/{digital_human_id}/archive/source_video/{upload_id}/source.mp4",
+  "archive_asset_type": "source_video",
+  "preview_url": "MinIO预签名下载地址"
+}
+```
+
 ### 4. 素材预览/下载
 
 ```http
@@ -472,6 +724,22 @@ test_library_api.py
 - `status=active` / `status=training` 状态筛选。
 - `summary.active_count`、`summary.training_count` 统计。
 - `display_asset.preview_url` 展示素材地址。
+
+档案中心接口测试：
+
+```text
+test_archive_api.py
+```
+
+覆盖内容：
+
+- `GET /api/digital-human-archive` 档案列表。
+- `POST /api/digital-human-archive/{digital_human_id}/source-video/upload` 上传原视频。
+- `POST /api/digital-human-archive/{digital_human_id}/source-audio/upload` 上传原音频。
+- `POST /api/digital-human-archive/{digital_human_id}/source-image/upload` 上传原图片。
+- `GET /api/digital-human-archive/{digital_human_id}` 按数字人聚合返回三类素材。
+- 创建数字人时的 `talking_video/person_image/voice_sample` 映射到档案三类分组。
+- 验证素材使用 MinIO key，并返回 `preview_url`。
 
 运行：
 

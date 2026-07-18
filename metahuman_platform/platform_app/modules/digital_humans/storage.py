@@ -42,6 +42,18 @@ class DigitalHumanStorage:
         safe_suffix = suffix if suffix else ""
         return f"digital-humans/{digital_human_id}/assets/{asset_type}{safe_suffix}"
 
+    def build_archive_asset_key(
+        self,
+        *,
+        digital_human_id: str,
+        asset_type: str,
+        upload_id: str,
+        filename: str,
+    ) -> str:
+        suffix = Path(filename).suffix
+        safe_suffix = suffix if suffix else ""
+        return f"digital-humans/{digital_human_id}/archive/{asset_type}/{upload_id}/source{safe_suffix}"
+
     def create_presigned_uploads(
         self,
         *,
@@ -111,6 +123,24 @@ class DigitalHumanStorage:
         object_key = self.build_asset_key(
             digital_human_id=digital_human_id,
             asset_type=asset_type,
+            filename=filename,
+        )
+        return self.storage.upload_bytes(object_key, content, content_type=content_type)
+
+    def upload_archive_asset_bytes(
+        self,
+        *,
+        digital_human_id: str,
+        asset_type: str,
+        upload_id: str,
+        filename: str,
+        content: bytes,
+        content_type: str,
+    ) -> str:
+        object_key = self.build_archive_asset_key(
+            digital_human_id=digital_human_id,
+            asset_type=asset_type,
+            upload_id=upload_id,
             filename=filename,
         )
         return self.storage.upload_bytes(object_key, content, content_type=content_type)
