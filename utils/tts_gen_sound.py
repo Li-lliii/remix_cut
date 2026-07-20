@@ -45,8 +45,12 @@ def _resolve_shared_asset(*parts: str) -> Path:
     return local_path
 
 
-QWEN3_TTS_ROOT  = _resolve_shared_asset("Qwen3-TTS")
-QWEN3_TTS_MODEL = QWEN3_TTS_ROOT / "Qwen3-TTS-12Hz-1.7B-Base"
+QWEN3_TTS_ROOT = Path(
+    os.environ.get("BS_MEDIA_QWEN3_TTS_ROOT", str(_resolve_shared_asset("Qwen3-TTS")))
+).expanduser().resolve()
+QWEN3_TTS_MODEL = Path(
+    os.environ.get("BS_MEDIA_QWEN3_TTS_MODEL", str(QWEN3_TTS_ROOT / "Qwen3-TTS-12Hz-1.7B-Base"))
+).expanduser().resolve()
 
 print(f"[INFO] PROJECT_ROOT   : {PROJECT_ROOT}")
 print(f"[INFO] QWEN3_TTS_MODEL: {QWEN3_TTS_MODEL}")
@@ -60,6 +64,45 @@ DEFAULT_SKIP_RATIO   = 0.05  # 跳过视频首尾各此比例，避免片头/片
 DEFAULT_MAX_ATTEMPTS = 5     # 最多随机尝试次数，取 ASR 文字最长的片段作为参考
 
 _tts_model = None
+
+
+def _prepare_waveform_for_write(wav):
+    import numpy as np
+
+    if hasattr(wav, "detach"):
+        wav = wav.detach().cpu().numpy()
+    else:
+        wav = np.asarray(wav)
+
+    wav = np.asarray(wav, dtype=np.float32)
+    wav = np.squeeze(wav)
+    if wav.ndim > 2:
+        raise RuntimeError(f"TTS 输出音频维度异常: shape={wav.shape}")
+    if wav.ndim == 2 and wav.shape[0] < wav.shape[1]:
+        wav = wav.T
+    wav = np.nan_to_num(wav, nan=0.0, posinf=1.0, neginf=-1.0)
+    return np.clip(wav, -1.0, 1.0)
+
+
+def _write_wav_file(output_path: Path, wav, sample_rate: int) -> None:
+    import wave
+    import numpy as np
+    import soundfile as sf
+
+    waveform = _prepare_waveform_for_write(wav)
+    temp_path = output_path.with_suffix(output_path.suffix + ".tmp")
+    try:
+        sf.write(str(temp_path), waveform, int(sample_rate), format="WAV", subtype="PCM_16")
+    except Exception as exc:
+        print(f"[WARNING] soundfile write failed, fallback to wave: {exc}")
+        pcm = (np.clip(waveform, -1.0, 1.0) * 32767.0).astype("<i2")
+        channels = 1 if pcm.ndim == 1 else pcm.shape[1]
+        with wave.open(str(temp_path), "wb") as handle:
+            handle.setnchannels(channels)
+            handle.setsampwidth(2)
+            handle.setframerate(int(sample_rate))
+            handle.writeframes(pcm.tobytes())
+    temp_path.replace(output_path)
 
 
 # ── Qwen3-TTS 模型加载 ───────────────────────────────────────────────────────
@@ -298,7 +341,6 @@ def synthesize_speech(
         输出WAV文件路径。
     '''
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    import soundfile as sf
 
     tts = _get_tts_model(device=tts_device)
 
@@ -319,7 +361,7 @@ def synthesize_speech(
         ref_text=ref_text,
     )
 
-    sf.write(str(output_path), wavs[0], sr)
+    _write_wav_file(output_path, wavs[0], int(sr))
 
     print(f"[INFO] TTS complete. Output: {output_path}")
     return output_path

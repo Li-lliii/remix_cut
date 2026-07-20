@@ -40,6 +40,41 @@ def _default_voice_path() -> Path:
     return Path(__file__).resolve().parents[1] / "assets" / "default_voice" / "dongbei_clone_5s.wav"
 
 
+def _external_path_mappings() -> list[tuple[Path, Path]]:
+    mappings: list[tuple[Path, Path]] = []
+    raw = os.environ.get("BS_MEDIA_PATH_MAPPINGS", "")
+    for item in raw.replace(";", ",").split(","):
+        if not item.strip() or "=" not in item:
+            continue
+        source, target = item.split("=", 1)
+        mappings.append((Path(source).expanduser(), Path(target).expanduser()))
+    mappings.append((Path("/app/metahuman_platform"), Path(__file__).resolve().parents[1]))
+    return mappings
+
+
+def _resolve_external_path(path: str | Path) -> Path:
+    resolved = Path(path).expanduser()
+    if resolved.exists():
+        return resolved.resolve()
+    for source, target in _external_path_mappings():
+        try:
+            relative = resolved.relative_to(source)
+        except ValueError:
+            continue
+        return (target / relative).expanduser().resolve()
+    return resolved.resolve()
+
+
+def _resolve_output_path(path: str | Path) -> Path:
+    resolved = _resolve_external_path(path)
+    resolved.parent.mkdir(parents=True, exist_ok=True)
+    return resolved
+
+
+def _caller_visible_path(path: str | Path) -> str:
+    return str(Path(path).expanduser())
+
+
 def _default_voice_text(reference_audio: Path) -> str:
     sidecar = reference_audio.with_suffix(".txt")
     if sidecar.exists():
@@ -179,9 +214,9 @@ def _run_clone(
 ) -> dict[str, Any]:
     try:
         result = tts_backend.tts_from_video(
-            video_path=video_path,
+            video_path=str(_resolve_external_path(video_path)),
             new_text=text,
-            output_path=Path(output_path).expanduser().resolve(),
+            output_path=_resolve_output_path(output_path),
             ref_duration=ref_duration,
             asr_device=asr_device,
             tts_device=tts_device,
@@ -193,9 +228,11 @@ def _run_clone(
     except Exception as exc:
         raise RuntimeError(f"TTS 执行失败: {exc}") from exc
 
-    output_file = Path(result).expanduser().resolve()
+    resolved_result = Path(result).expanduser().resolve()
+    if not resolved_result.exists():
+        raise RuntimeError(f"TTS 输出文件不存在: {resolved_result}")
     return {
-        "tts_audio_path": str(output_file),
+        "tts_audio_path": _caller_visible_path(output_path),
         "voice_source": "clone",
         "fallback_used": False,
         "message": "ok",
@@ -209,7 +246,7 @@ def _run_default(
     reference_audio_path: str | None = None,
     reference_text: str | None = None,
 ) -> dict[str, Any]:
-    reference_audio = Path(reference_audio_path).expanduser().resolve() if reference_audio_path else _default_voice_path()
+    reference_audio = _resolve_external_path(reference_audio_path) if reference_audio_path else _default_voice_path()
     if not reference_audio.exists():
         raise RuntimeError(f"默认参考音色不存在: {reference_audio}")
 
@@ -220,14 +257,16 @@ def _run_default(
             reference_audio=reference_audio,
             ref_text=ref_text,
             text=text,
-            output_path=Path(output_path).expanduser().resolve(),
+            output_path=_resolve_output_path(output_path),
         )
     except Exception as exc:
         raise RuntimeError(f"TTS 执行失败: {exc}") from exc
 
-    output_file = Path(result).expanduser().resolve()
+    resolved_result = Path(result).expanduser().resolve()
+    if not resolved_result.exists():
+        raise RuntimeError(f"TTS 输出文件不存在: {resolved_result}")
     return {
-        "tts_audio_path": str(output_file),
+        "tts_audio_path": _caller_visible_path(output_path),
         "voice_source": "default",
         "fallback_used": True,
         "message": "used default reference voice",

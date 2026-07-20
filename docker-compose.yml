@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    user: "${BS_MEDIA_UID:-1000}:${BS_MEDIA_GID:-1000}"
     command: python -m uvicorn server:app --host 0.0.0.0 --port 7028
     env_file:
       - .env
@@ -14,6 +15,7 @@ services:
       BS_MEDIA_TTS_SERVICE_HOST: host.docker.internal
       BS_MEDIA_COMFY_SERVICE_HOST: comfyui-gateway
       BS_MEDIA_COMFY_SERVICE_PORT: "7002"
+      BS_MEDIA_REPLACE_SPEECH_WORKFLOW_PATH: /app/workstream/ai_transforms/replace_speech_api.json
       BS_MEDIA_REDIS_URL: redis://redis:6379/0
       BS_MEDIA_CELERY_BROKER_URL: amqp://bs_media:bs_media@rabbitmq:5672//
       BS_MEDIA_CELERY_RESULT_BACKEND: redis://redis:6379/0
@@ -21,6 +23,7 @@ services:
       BS_MEDIA_DATA_DIR: /app/metahuman_platform/data
       BS_MEDIA_UPLOADS_DIR: /app/metahuman_platform/uploads
       BS_MEDIA_WORK_DIR: /app/metahuman_platform/work
+      BS_MEDIA_PLATFORM_LOG_FILE: /app/metahuman_platform/work/logs/platform/uvicorn-7028.log
     ports:
       - "7027:7028"
     depends_on:
@@ -39,7 +42,7 @@ services:
     volumes:
       - platform_data:/app/metahuman_platform/data
       - platform_uploads:/app/metahuman_platform/uploads
-      - platform_work:/app/metahuman_platform/work
+      - ./metahuman_platform/work:/app/metahuman_platform/work
       - ./config.yaml:/app/config.yaml:ro
       - ./workstream:/app/workstream:ro
     restart: unless-stopped
@@ -48,6 +51,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    user: "${BS_MEDIA_UID:-1000}:${BS_MEDIA_GID:-1000}"
     command: celery -A platform_app.infra.celery_app.celery_app worker --loglevel=info
     env_file:
       - .env
@@ -59,6 +63,7 @@ services:
       BS_MEDIA_TTS_SERVICE_HOST: host.docker.internal
       BS_MEDIA_COMFY_SERVICE_HOST: comfyui-gateway
       BS_MEDIA_COMFY_SERVICE_PORT: "7002"
+      BS_MEDIA_REPLACE_SPEECH_WORKFLOW_PATH: /app/workstream/ai_transforms/replace_speech_api.json
       BS_MEDIA_REDIS_URL: redis://redis:6379/0
       BS_MEDIA_CELERY_BROKER_URL: amqp://bs_media:bs_media@rabbitmq:5672//
       BS_MEDIA_CELERY_RESULT_BACKEND: redis://redis:6379/0
@@ -82,7 +87,7 @@ services:
     volumes:
       - platform_data:/app/metahuman_platform/data
       - platform_uploads:/app/metahuman_platform/uploads
-      - platform_work:/app/metahuman_platform/work
+      - ./metahuman_platform/work:/app/metahuman_platform/work
       - ./config.yaml:/app/config.yaml:ro
       - ./workstream:/app/workstream:ro
     restart: unless-stopped
@@ -91,12 +96,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    user: "${BS_MEDIA_UID:-1000}:${BS_MEDIA_GID:-1000}"
     command: python -m uvicorn algorithm_services.comfy_gateway_service:app --host 0.0.0.0 --port 7002
     env_file:
       - .env
     environment:
       BS_MEDIA_COMFY_JOB_STORE_PATH: /app/metahuman_platform/work/comfy_gateway_jobs.json
       BS_MEDIA_REPLACE_BACKGROUND_WORKFLOW_PATH: /app/workstream/ai_transforms/replace_background_api.json
+      BS_MEDIA_REPLACE_SPEECH_WORKFLOW_PATH: /app/workstream/ai_transforms/replace_speech_api.json
       BS_MEDIA_CONFIG_PATH: /app/config.yaml
     ports:
       - "7003:7002"
@@ -108,7 +115,7 @@ services:
 #      - ./config.yaml:/app/config.yaml:ro
 #      - ./workstream:/app/workstream:ro
     volumes:
-      - platform_work:/app/metahuman_platform/work
+      - ./metahuman_platform/work:/app/metahuman_platform/work
       - ./config.yaml:/app/config.yaml:ro
       - ./workstream:/app/workstream:ro
       - /home/kemove/yinqiaoqiao/ComfyUI/input:/home/kemove/yinqiaoqiao/ComfyUI/input
@@ -177,7 +184,6 @@ services:
 volumes:
   platform_data:
   platform_uploads:
-  platform_work:
   rabbitmq_data:
   redis_data:
   minio_data:

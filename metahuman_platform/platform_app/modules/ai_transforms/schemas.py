@@ -3,7 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
-ENABLED_OPERATIONS = {"replace_background"}
+ENABLED_OPERATIONS = {"replace_background", "replace_speech"}
 SUPPORTED_OPERATIONS = {
     "replace_background",
     "replace_clothes",
@@ -19,6 +19,7 @@ CAPABILITIES = [
         "enabled": True,
         "required_inputs": ["background_image"],
         "optional_inputs": [],
+        "required_params": [],
     },
     {
         "operation": "replace_clothes",
@@ -26,6 +27,7 @@ CAPABILITIES = [
         "enabled": False,
         "required_inputs": ["clothes_image"],
         "optional_inputs": [],
+        "required_params": [],
     },
     {
         "operation": "replace_avatar",
@@ -33,13 +35,15 @@ CAPABILITIES = [
         "enabled": False,
         "required_inputs": ["avatar_reference"],
         "optional_inputs": [],
+        "required_params": [],
     },
     {
         "operation": "replace_speech",
         "label": "换口播",
-        "enabled": False,
+        "enabled": True,
         "required_inputs": [],
-        "optional_inputs": ["speech_audio", "speech_text"],
+        "optional_inputs": [],
+        "required_params": ["speech_text"],
     },
     {
         "operation": "replace_product",
@@ -47,6 +51,7 @@ CAPABILITIES = [
         "enabled": False,
         "required_inputs": ["product_image"],
         "optional_inputs": [],
+        "required_params": [],
     },
 ]
 

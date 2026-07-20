@@ -47,11 +47,32 @@ def _load_comfy_config() -> dict[str, Any]:
     return dict(config.get("comfyui") or {})
 
 
+def _default_workflow_path(*, env_key: str, filename: str) -> str:
+    return str(
+        Path(
+            os.environ.get(
+                env_key,
+                str(Path(__file__).resolve().parents[2] / "workstream" / "ai_transforms" / filename),
+            )
+        )
+        .expanduser()
+        .resolve()
+    )
+
+
 def _backend_ready() -> bool:
     try:
         from utils.gen_video import ComfyUIClient
 
-        client = ComfyUIClient(_load_comfy_config())
+        comfy_cfg = _load_comfy_config()
+        comfy_cfg.setdefault(
+            "workflow_path",
+            _default_workflow_path(
+                env_key="BS_MEDIA_REPLACE_SPEECH_WORKFLOW_PATH",
+                filename="replace_speech_api.json",
+            ),
+        )
+        client = ComfyUIClient(comfy_cfg)
         return bool(client.check_health())
     except Exception:
         return False
@@ -81,6 +102,10 @@ def _submit_to_underlying_job(
         raise RuntimeError("视频生成服务提交失败: audio_path 不能为空")
     try:
         comfy_cfg = _load_comfy_config()
+        comfy_cfg["workflow_path"] = _default_workflow_path(
+            env_key="BS_MEDIA_REPLACE_SPEECH_WORKFLOW_PATH",
+            filename="replace_speech_api.json",
+        )
         comfy_cfg["output_dir"] = str(Path(output_dir).expanduser().resolve())
         from utils.gen_video import ComfyUIClient
 
@@ -112,13 +137,9 @@ def _submit_replace_background_job(
             raise RuntimeError("config.yaml 缺少 comfyui.server_address")
         if not input_dir:
             raise RuntimeError("config.yaml 缺少 comfyui.input_dir")
-        workflow_path = str(
-            Path(
-                os.environ.get(
-                    "BS_MEDIA_REPLACE_BACKGROUND_WORKFLOW_PATH",
-                    str(Path(__file__).resolve().parents[2] / "workstream" / "ai_transforms" / "replace_background_api.json"),
-                )
-            ).expanduser().resolve()
+        workflow_path = _default_workflow_path(
+            env_key="BS_MEDIA_REPLACE_BACKGROUND_WORKFLOW_PATH",
+            filename="replace_background_api.json",
         )
         replace_background_workflow.SERVER_ADDRESS = server_address
         replace_background_workflow.COMFYUI_INPUT_DIR = Path(input_dir).expanduser().resolve()
@@ -147,27 +168,19 @@ def _submit_replace_background_job(
         raise RuntimeError(f"换背景视频生成服务提交失败: {exc}") from exc
 
 
-def _poll_underlying_job(*, prompt_id: str, output_dir: str) -> dict[str, Any]:
+def _poll_underlying_job(*, prompt_id: str, output_dir: str, task_type: str | None = None) -> dict[str, Any]:
     try:
         comfy_cfg = _load_comfy_config()
-        comfy_cfg.setdefault(
-            "workflow_path",
-            str(
-                Path(
-                    os.environ.get(
-                        "BS_MEDIA_REPLACE_BACKGROUND_WORKFLOW_PATH",
-                        str(
-                            Path(__file__).resolve().parents[2]
-                            / "workstream"
-                            / "ai_transforms"
-                            / "replace_background_api.json"
-                        ),
-                    )
-                )
-                .expanduser()
-                .resolve()
-            ),
-        )
+        if task_type == "replace_background":
+            comfy_cfg["workflow_path"] = _default_workflow_path(
+                env_key="BS_MEDIA_REPLACE_BACKGROUND_WORKFLOW_PATH",
+                filename="replace_background_api.json",
+            )
+        else:
+            comfy_cfg["workflow_path"] = _default_workflow_path(
+                env_key="BS_MEDIA_REPLACE_SPEECH_WORKFLOW_PATH",
+                filename="replace_speech_api.json",
+            )
         comfy_cfg["output_dir"] = str(Path(output_dir).expanduser().resolve())
         from utils.gen_video import ComfyUIClient
 
@@ -279,7 +292,11 @@ def create_app(
                 prompt_id,
                 record.get("task_id"),
             )
-            result = poll_impl(prompt_id=prompt_id, output_dir=str(record["output_dir"]))
+            result = poll_impl(
+                prompt_id=prompt_id,
+                output_dir=str(record["output_dir"]),
+                task_type=str(record.get("task_type") or ""),
+            )
             if result["status"] == "pending":
                 logger.info("stage=comfy_poll_pending prompt_id=%s", prompt_id)
                 store.update_job(prompt_id, status="pending", message="pending")

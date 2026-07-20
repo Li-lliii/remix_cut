@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# python -m uvicorn algorithm_services.asr_service:app --host 0.0.0.0 --port 7000
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -154,6 +155,11 @@ start_service() {
   else
     nohup env PYTHONUNBUFFERED=1 $device_env conda run --no-capture-output -n "$env_name" python -m uvicorn "$module:app" --host "$HOST" --port "$port" >"$log_file" 2>&1 &
   fi
+#   if [ -n "$gpu" ]; then
+#   nohup env PYTHONUNBUFFERED=1 PYTHONPATH="$METAHUMAN_ROOT:$REMIX_ROOT:${PYTHONPATH:-}" CUDA_VISIBLE_DEVICES="$gpu" $device_env conda run --no-capture-output -n "$env_name" python -m uvicorn "$module:app" --host "$HOST" --port "$port" >"$log_file" 2>&1 &
+# else
+#   nohup env PYTHONUNBUFFERED=1 PYTHONPATH="$METAHUMAN_ROOT:$REMIX_ROOT:${PYTHONPATH:-}" $device_env conda run --no-capture-output -n "$env_name" python -m uvicorn "$module:app" --host "$HOST" --port "$port" >"$log_file" 2>&1 &
+# fi
   local pid=$!
   echo "$pid" > "$pid_file"
 
@@ -171,6 +177,7 @@ start_service() {
 }
 
 start_service "asr" "algorithm_services.asr_service" "$ASR_GPU" "$ASR_PORT" "tts" "model_loaded" "BS_MEDIA_ASR_DEVICE=$ASR_DEVICE"
+# start_service "asr" "algorithm_services.asr_service" "$ASR_GPU" "$ASR_PORT" "asr_service" "model_loaded" "BS_MEDIA_ASR_DEVICE=$ASR_DEVICE"
 start_service "tts" "algorithm_services.tts_service" "$TTS_GPU" "$TTS_PORT" "tts" "model_loaded" "BS_MEDIA_TTS_ASR_DEVICE=$TTS_ASR_DEVICE BS_MEDIA_TTS_DEVICE=$TTS_DEVICE"
 start_service "comfyui" "algorithm_services.comfy_gateway_service" "" "$COMFY_PORT" "AIGC" "comfyui_reachable" ""
 

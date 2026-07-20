@@ -75,12 +75,7 @@ def _convert_ui_workflow_to_api(workflow: dict[str, Any]) -> dict[str, Any]:
 
 
 def _load_workflow_prompt(workflow_path: str) -> dict[str, Any]:
-    path = Path(workflow_path).expanduser().resolve()
-    if not path.exists():
-        raise FileNotFoundError(f"ComfyUI 工作流文件不存在: {path}")
-    if path.stat().st_size == 0:
-        raise ValueError(f"ComfyUI 工作流文件为空: {path}")
-    workflow = json.loads(path.read_text(encoding="utf-8"))
+    workflow = json.loads(Path(workflow_path).expanduser().read_text(encoding="utf-8"))
     if isinstance(workflow, dict) and "nodes" in workflow and "links" in workflow:
         return _convert_ui_workflow_to_api(workflow)
     return workflow

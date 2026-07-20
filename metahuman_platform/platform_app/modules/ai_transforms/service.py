@@ -19,6 +19,7 @@ from platform_app.services.video_service import VideoService
 
 OPERATION_WORKFLOWS = {
     "replace_background": "ai_transform_replace_background",
+    "replace_speech": "ai_transform_replace_speech",
 }
 
 OPERATION_REQUIRED_INPUTS = {
@@ -64,6 +65,7 @@ class AiTransformService:
         disabled = [operation for operation in normalized_operations if operation not in ENABLED_OPERATIONS]
         if disabled:
             raise ValueError(f"能力尚未接入工作流: {', '.join(disabled)}")
+        self._validate_operation_params(normalized_operations, params or {})
         if self.role_repository.get(role_id) is None:
             raise ValueError("角色不存在")
         video = self.video_repository.get(source_video_id)
@@ -104,6 +106,7 @@ class AiTransformService:
         normalized_operations = self._normalize_operations(operations)
         if "replace_background" in normalized_operations and not background_image_content:
             raise ValueError("换背景需要上传 background_image")
+        self._validate_operation_params(normalized_operations, params or {})
 
         input_asset_keys = {
             "source_video": self._source_video_storage_key(
@@ -247,6 +250,10 @@ class AiTransformService:
         if disabled:
             raise ValueError(f"能力尚未接入工作流: {', '.join(disabled)}")
         return normalized_operations
+
+    def _validate_operation_params(self, operations: list[str], params: dict):
+        if "replace_speech" in operations and not str(params.get("speech_text") or "").strip():
+            raise ValueError("换口播需要传 speech_text")
 
     def _source_video_storage_key(self, *, role_id: str, source_video_id: str) -> str:
         if self.role_repository.get(role_id) is None:

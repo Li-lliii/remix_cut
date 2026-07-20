@@ -78,8 +78,14 @@ async def test_ai_transform_capabilities(tmp_path, monkeypatch):
         "replace_speech",
         "replace_product",
     ]
-    assert items[0]["enabled"] is True
-    assert all(item["enabled"] is False for item in items[1:])
+    enabled = {item["operation"]: item["enabled"] for item in items}
+    assert enabled["replace_background"] is True
+    assert enabled["replace_speech"] is True
+    assert enabled["replace_clothes"] is False
+    assert enabled["replace_avatar"] is False
+    assert enabled["replace_product"] is False
+    replace_speech = next(item for item in items if item["operation"] == "replace_speech")
+    assert replace_speech["required_params"] == ["speech_text"]
 
 
 @pytest.mark.anyio
@@ -143,6 +149,59 @@ async def test_ai_transform_rejects_unsupported_operation(tmp_path, monkeypatch)
 
 
 @pytest.mark.anyio
+async def test_create_ai_transform_speech_task(tmp_path, monkeypatch):
+    monkeypatch.setenv("BS_MEDIA_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BS_MEDIA_UPLOADS_DIR", str(tmp_path / "uploads"))
+    monkeypatch.setenv("BS_MEDIA_DEFAULT_ASR_MODE", "mock")
+    monkeypatch.setattr("platform_app.modules.materials.service.MinioObjectStorage", FakeMinioObjectStorage)
+    monkeypatch.setattr("platform_app.modules.ai_transforms.service.AiTransformStorage", FakeAiTransformStorage)
+
+    async with app_client() as client:
+        role, video = await _create_role_and_video(client)
+        response = await client.post(
+            "/api/ai-transforms/tasks",
+            json={
+                "role_id": role["id"],
+                "source_video_id": video["id"],
+                "operations": ["replace_speech"],
+                "input_asset_keys": {"source_video": "videos/source.mp4"},
+                "params": {"speech_text": "这是一段新的测试口播文案。"},
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["task"]["operations_json"] == ["replace_speech"]
+    assert payload["items"][0]["operation"] == "replace_speech"
+    assert payload["items"][0]["workflow_name"] == "ai_transform_replace_speech"
+
+
+@pytest.mark.anyio
+async def test_create_ai_transform_speech_requires_text(tmp_path, monkeypatch):
+    monkeypatch.setenv("BS_MEDIA_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BS_MEDIA_UPLOADS_DIR", str(tmp_path / "uploads"))
+    monkeypatch.setenv("BS_MEDIA_DEFAULT_ASR_MODE", "mock")
+    monkeypatch.setattr("platform_app.modules.materials.service.MinioObjectStorage", FakeMinioObjectStorage)
+    monkeypatch.setattr("platform_app.modules.ai_transforms.service.AiTransformStorage", FakeAiTransformStorage)
+
+    async with app_client() as client:
+        role, video = await _create_role_and_video(client)
+        response = await client.post(
+            "/api/ai-transforms/tasks",
+            json={
+                "role_id": role["id"],
+                "source_video_id": video["id"],
+                "operations": ["replace_speech"],
+                "input_asset_keys": {"source_video": "videos/source.mp4"},
+                "params": {},
+            },
+        )
+
+    assert response.status_code == 400
+    assert "speech_text" in response.json()["error"]["message"]
+
+
+@pytest.mark.anyio
 async def test_upload_and_run_background_task(tmp_path, monkeypatch):
     monkeypatch.setenv("BS_MEDIA_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("BS_MEDIA_UPLOADS_DIR", str(tmp_path / "uploads"))
@@ -177,6 +236,43 @@ async def test_upload_and_run_background_task(tmp_path, monkeypatch):
     assert payload["task"]["input_asset_keys_json"]["source_video"].startswith("materials/original_videos/")
     assert payload["task"]["input_asset_keys_json"]["background_image"].startswith("materials/background_images/")
     assert payload["detail_url"] == f"/api/ai-transforms/tasks/{payload['task_id']}"
+    assert queued == [payload["task_id"]]
+
+
+@pytest.mark.anyio
+async def test_upload_and_run_speech_task(tmp_path, monkeypatch):
+    monkeypatch.setenv("BS_MEDIA_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BS_MEDIA_UPLOADS_DIR", str(tmp_path / "uploads"))
+    monkeypatch.setenv("BS_MEDIA_DEFAULT_ASR_MODE", "mock")
+    monkeypatch.setattr("platform_app.modules.materials.service.MinioObjectStorage", FakeMinioObjectStorage)
+    monkeypatch.setattr("platform_app.modules.ai_transforms.service.AiTransformStorage", FakeAiTransformStorage)
+
+    queued = []
+
+    def fake_delay(task_id: str):
+        queued.append(task_id)
+
+    monkeypatch.setattr("platform_app.modules.ai_transforms.tasks.run_ai_transform_task.delay", fake_delay)
+
+    async with app_client() as client:
+        role, video = await _create_role_and_video(client)
+        response = await client.post(
+            "/api/ai-transforms/tasks/upload-and-run",
+            data={
+                "role_id": role["id"],
+                "source_video_id": video["id"],
+                "operations": '["replace_speech"]',
+                "params": "{}",
+                "speech_text": "这是一段新的测试口播文案。",
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "queued"
+    assert payload["task"]["operations_json"] == ["replace_speech"]
+    assert payload["task"]["params_json"]["speech_text"] == "这是一段新的测试口播文案。"
+    assert payload["task"]["input_asset_keys_json"]["source_video"].startswith("materials/original_videos/")
     assert queued == [payload["task_id"]]
 
 
@@ -276,3 +372,28 @@ def test_replace_background_workflow_defaults_patch_real_comfyui_workflow():
     assert prompt["176"]["class_type"] == "VHS_VideoCombine"
     assert prompt["176"]["inputs"]["filename_prefix"] == "ai_transforms/task-1/result"
     assert prompt["176"]["inputs"]["save_output"] is True
+
+
+def test_replace_speech_pipeline_lives_under_ai_transforms():
+    from platform_app.modules.ai_transforms.speech import pipeline
+
+    assert pipeline.submit_lip_sync_generation.__module__ == "platform_app.modules.ai_transforms.speech.pipeline"
+
+
+def test_replace_speech_workflow_can_load_from_ai_transforms():
+    from utils.gen_video import ComfyUIClient
+
+    client = ComfyUIClient(
+        {
+            "server_address": "127.0.0.1:8188",
+            "workflow_path": "workstream/ai_transforms/replace_speech_api.json",
+            "input_dir": "/tmp/comfy-input",
+            "output_dir": "/tmp/comfy-output",
+        }
+    )
+    workflow = client.load_workflow()
+
+    assert "nodes" not in workflow
+    assert workflow["47"]["class_type"] == "VHS_LoadVideo"
+    assert workflow["55"]["class_type"] == "LoadAudio"
+    assert workflow["46"]["class_type"] == "VHS_VideoCombine"

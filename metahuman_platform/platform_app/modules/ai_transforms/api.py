@@ -81,12 +81,14 @@ async def upload_and_run_task(
     speech_text: str = Form(default=""),
     product_image: UploadFile | None = File(default=None),
 ):
-    del clothes_image, avatar_reference, speech_audio, speech_text, product_image
+    del clothes_image, avatar_reference, speech_audio, product_image
     try:
         parsed_operations = _parse_operations(operations)
         parsed_params = _parse_json_form(params, field_name="params")
         if not isinstance(parsed_params, dict):
             raise ValueError("params 必须是 JSON 对象")
+        if speech_text.strip():
+            parsed_params["speech_text"] = speech_text.strip()
         background_image_content = await background_image.read() if background_image is not None else None
         return build_service().upload_and_run(
             role_id=role_id,

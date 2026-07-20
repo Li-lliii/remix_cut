@@ -8,9 +8,12 @@
 - 换产品：预留
 - 换服装/AI 换装：预留
 - 换数字人：预留
-- 换口播：预留
+- 换口播：`replace_speech`
 
-当前代码已经真实接入的是 `replace_background`。它会把原视频和背景图交给 ComfyUI 工作流生成新视频。
+当前代码已经真实接入的是 `replace_background` 和最小 MVP 版 `replace_speech`。
+
+- `replace_background`：把原视频和背景图交给 ComfyUI 工作流生成新视频。
+- `replace_speech`：前端直接传最终口播文案 `speech_text`，后端复用原有 TTS + ComfyUI 对口型流程生成新口播视频；默认工作流是 `workstream/ai_transforms/replace_speech_api.json`，暂不迁移候选文案生成、编辑、选择流程。
 
 ## 目录结构
 
@@ -24,6 +27,11 @@ platform_app/modules/ai_transforms/
 ├── workflows.py      # 后台执行器：下载素材、调 ComfyUI、上传结果
 ├── comfy_adapter.py  # 调用 ComfyUI gateway
 ├── storage.py        # MinIO 输入/结果存储封装
+├── speech/           # 换口播 MVP：TTS + ComfyUI 对口型流程
+│   ├── pipeline.py
+│   ├── media_generation.py
+│   ├── duration_estimator.py
+│   └── script_generation.py
 └── README.md
 ```
 
@@ -35,7 +43,7 @@ platform_app/modules/ai_transforms/
 GET /api/ai-transforms/capabilities
 ```
 
-作用：返回前端可渲染的 AI 变身能力按钮。当前接口协议已经列出五个能力，但 MVP 阶段只有换背景真正启用：
+作用：返回前端可渲染的 AI 变身能力按钮。当前接口协议已经列出五个能力，MVP 阶段启用换背景和最小换口播：
 
 ```json
 {
@@ -45,35 +53,40 @@ GET /api/ai-transforms/capabilities
       "label": "换背景",
       "enabled": true,
       "required_inputs": ["background_image"],
-      "optional_inputs": []
+      "optional_inputs": [],
+      "required_params": []
     },
     {
       "operation": "replace_clothes",
       "label": "换服装",
       "enabled": false,
       "required_inputs": ["clothes_image"],
-      "optional_inputs": []
+      "optional_inputs": [],
+      "required_params": []
     },
     {
       "operation": "replace_avatar",
       "label": "换数字人",
       "enabled": false,
       "required_inputs": ["avatar_reference"],
-      "optional_inputs": []
+      "optional_inputs": [],
+      "required_params": []
     },
     {
       "operation": "replace_speech",
       "label": "换口播",
-      "enabled": false,
+      "enabled": true,
       "required_inputs": [],
-      "optional_inputs": ["speech_audio", "speech_text"]
+      "optional_inputs": [],
+      "required_params": ["speech_text"]
     },
     {
       "operation": "replace_product",
       "label": "换产品",
       "enabled": false,
       "required_inputs": ["product_image"],
-      "optional_inputs": []
+      "optional_inputs": [],
+      "required_params": []
     }
   ]
 }
@@ -143,6 +156,27 @@ params={}
 background_image=<上传的背景图文件>
 ```
 
+MVP 换口播请求：
+
+```text
+role_id=角色ID
+source_video_id=原视频记录ID
+operations=["replace_speech"]
+params={}
+speech_text=这是一段新的口播文案
+```
+
+换背景后再换口播的组合请求：
+
+```text
+role_id=角色ID
+source_video_id=原视频记录ID
+operations=["replace_background","replace_speech"]
+params={}
+background_image=<上传的背景图文件>
+speech_text=这是一段新的口播文案
+```
+
 成功返回：
 
 ```json
@@ -174,11 +208,22 @@ background_image=<上传的背景图文件>
 POST /api/ai-transforms/tasks
 ```
 
-作用：创建 AI 变身任务，但不一定立即执行。当前只允许：
+作用：创建 AI 变身任务，但不一定立即执行。当前允许：
 
 ```json
 {
   "operations": ["replace_background"]
+}
+```
+
+或：
+
+```json
+{
+  "operations": ["replace_speech"],
+  "params": {
+    "speech_text": "这是一段新的口播文案"
+  }
 }
 ```
 

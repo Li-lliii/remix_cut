@@ -131,6 +131,50 @@ def test_tts_service_uses_configured_asr_host_and_port(monkeypatch):
     assert tts_service._asr_service_base_url() == "http://10.0.0.2:7100"
 
 
+def test_tts_service_maps_container_paths_for_host_runtime(monkeypatch, tmp_path):
+    host_file = tmp_path / "work" / "input" / "source.mp4"
+    host_file.parent.mkdir(parents=True)
+    host_file.write_bytes(b"video")
+    monkeypatch.setenv("BS_MEDIA_PATH_MAPPINGS", f"/app/metahuman_platform={tmp_path}")
+
+    resolved = tts_service._resolve_external_path("/app/metahuman_platform/work/input/source.mp4")
+
+    assert resolved == host_file.resolve()
+
+
+def test_tts_service_creates_parent_dir_for_mapped_output(monkeypatch, tmp_path):
+    monkeypatch.setenv("BS_MEDIA_PATH_MAPPINGS", f"/app/metahuman_platform={tmp_path}")
+    output_path = tts_service._resolve_output_path("/app/metahuman_platform/work/temp/task/tts/result.wav")
+
+    assert output_path == (tmp_path / "work" / "temp" / "task" / "tts" / "result.wav").resolve()
+    assert output_path.parent.exists()
+
+
+def test_tts_service_returns_caller_visible_output_path_for_mapped_clone(monkeypatch, tmp_path):
+    host_video = tmp_path / "work" / "input" / "source.mp4"
+    host_video.parent.mkdir(parents=True)
+    host_video.write_bytes(b"video")
+    container_output = "/app/metahuman_platform/work/temp/task/tts/result.wav"
+    monkeypatch.setenv("BS_MEDIA_PATH_MAPPINGS", f"/app/metahuman_platform={tmp_path}")
+
+    def fake_tts_from_video(**kwargs):
+        kwargs["output_path"].write_bytes(b"audio")
+        return kwargs["output_path"]
+
+    monkeypatch.setattr(tts_service.tts_backend, "tts_from_video", fake_tts_from_video)
+    result = tts_service._run_clone(
+        video_path="/app/metahuman_platform/work/input/source.mp4",
+        text="你好",
+        output_path=container_output,
+        ref_duration=5.0,
+        asr_device="cpu",
+        tts_device="cpu",
+    )
+
+    assert result["tts_audio_path"] == container_output
+    assert (tmp_path / "work" / "temp" / "task" / "tts" / "result.wav").exists()
+
+
 def test_tts_service_clone_passes_http_asr_resolver(monkeypatch, tmp_path):
     output_path = tmp_path / "clone.wav"
     output_path.write_bytes(b"audio")
@@ -353,3 +397,31 @@ def test_tts_from_video_uses_injected_asr_resolver(monkeypatch, tmp_path):
         "ref_duration": 5.0,
         "asr_device": "cuda:3",
     }
+
+
+def test_tts_waveform_for_write_is_sanitized():
+    import numpy as np
+
+    waveform = tts_gen_sound._prepare_waveform_for_write(np.array([[-2.0, float("nan"), float("inf")]]))
+
+    assert waveform.dtype == np.float32
+    assert waveform.shape == (3,)
+    assert waveform.tolist() == [-1.0, 0.0, 1.0]
+
+
+def test_tts_write_wav_file_falls_back_to_wave(monkeypatch, tmp_path):
+    import numpy as np
+    import soundfile as sf
+
+    output_path = tmp_path / "fallback.wav"
+
+    def raise_write(*args, **kwargs):
+        del args, kwargs
+        raise RuntimeError("libsndfile boom")
+
+    monkeypatch.setattr(sf, "write", raise_write)
+
+    tts_gen_sound._write_wav_file(output_path, np.zeros(16000, dtype=np.float32), 16000)
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 44
