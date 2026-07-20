@@ -151,3 +151,17 @@ AUDIO_CLIP_DURATION = 5
 ## License
 
 Internal Use Only
+
+
+
+
+unset BS_MEDIA_DATABASE_URL
+
+export BS_MEDIA_PLATFORM_LOG_FILE=/tmp/bs-media-platform.log
+export BS_MEDIA_MINIO_ENDPOINT=127.0.0.1:9000
+export BS_MEDIA_MINIO_ACCESS_KEY=minioadmin
+export BS_MEDIA_MINIO_SECRET_KEY=minioadmin
+export BS_MEDIA_MINIO_BUCKET=bs-media
+export BS_MEDIA_MINIO_SECURE=false
+
+../.venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 8000 --reload

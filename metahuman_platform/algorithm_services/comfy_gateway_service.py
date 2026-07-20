@@ -101,8 +101,17 @@ def _submit_replace_background_job(
     if not background_image_path:
         raise RuntimeError("换背景任务缺少 background_image_path")
     try:
-        from scripts.run_comfyui_workflow import submit_workflow
+        import uuid
 
+        from scripts.comfyui import replace_background_api_workflow as replace_background_workflow
+
+        comfy_cfg = _load_comfy_config()
+        server_address = str(comfy_cfg.get("server_address") or "").strip()
+        input_dir = str(comfy_cfg.get("input_dir") or "").strip()
+        if not server_address:
+            raise RuntimeError("config.yaml 缺少 comfyui.server_address")
+        if not input_dir:
+            raise RuntimeError("config.yaml 缺少 comfyui.input_dir")
         workflow_path = str(
             Path(
                 os.environ.get(
@@ -111,14 +120,29 @@ def _submit_replace_background_job(
                 )
             ).expanduser().resolve()
         )
-        return submit_workflow(
-            workflow_path=workflow_path,
-            workflow_name=workflow_name or "ai_transform_replace_background",
-            video_path=video_path,
-            background_image_path=background_image_path,
-            output_dir=output_dir,
-            params=params or {},
+        replace_background_workflow.SERVER_ADDRESS = server_address
+        replace_background_workflow.COMFYUI_INPUT_DIR = Path(input_dir).expanduser().resolve()
+
+        workflow = replace_background_workflow._load_workflow(Path(workflow_path))
+        video_value = replace_background_workflow._prepare_input_value(Path(video_path).expanduser().resolve())
+        background_value = replace_background_workflow._prepare_input_value(
+            Path(background_image_path).expanduser().resolve()
         )
+        filename_prefix = (
+            str((params or {}).get("filename_prefix") or "").strip()
+            or f"ai_transforms/{workflow_name or 'ai_transform_replace_background'}/{Path(output_dir).name}"
+        )
+        prompt = replace_background_workflow.patch_workflow_inputs(
+            workflow,
+            video_value=video_value,
+            background_value=background_value,
+            filename_prefix=filename_prefix,
+        )
+        prompt_id = str(uuid.uuid4())
+        result = replace_background_workflow.queue_prompt(prompt, prompt_id)
+        if not result:
+            raise RuntimeError("ComfyUI /prompt 未返回有效结果，请查看 comfyui-gateway 日志")
+        return prompt_id
     except Exception as exc:
         raise RuntimeError(f"换背景视频生成服务提交失败: {exc}") from exc
 
@@ -126,6 +150,24 @@ def _submit_replace_background_job(
 def _poll_underlying_job(*, prompt_id: str, output_dir: str) -> dict[str, Any]:
     try:
         comfy_cfg = _load_comfy_config()
+        comfy_cfg.setdefault(
+            "workflow_path",
+            str(
+                Path(
+                    os.environ.get(
+                        "BS_MEDIA_REPLACE_BACKGROUND_WORKFLOW_PATH",
+                        str(
+                            Path(__file__).resolve().parents[2]
+                            / "workstream"
+                            / "ai_transforms"
+                            / "replace_background_api.json"
+                        ),
+                    )
+                )
+                .expanduser()
+                .resolve()
+            ),
+        )
         comfy_cfg["output_dir"] = str(Path(output_dir).expanduser().resolve())
         from utils.gen_video import ComfyUIClient
 

@@ -16,6 +16,7 @@ class FakeAiTransformStorage:
             field
             for field in required_fields
             if input_asset_keys.get(field) not in self.existing_keys
+            and not str(input_asset_keys.get(field) or "").startswith("materials/")
         ]
         if missing:
             raise ValueError(f"素材不存在或尚未上传: {', '.join(missing)}")
@@ -58,6 +59,27 @@ async def _create_role_and_video(client):
         )
     ).json()
     return role, video
+
+
+@pytest.mark.anyio
+async def test_ai_transform_capabilities(tmp_path, monkeypatch):
+    monkeypatch.setenv("BS_MEDIA_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BS_MEDIA_UPLOADS_DIR", str(tmp_path / "uploads"))
+
+    async with app_client() as client:
+        response = await client.get("/api/ai-transforms/capabilities")
+
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert [item["operation"] for item in items] == [
+        "replace_background",
+        "replace_clothes",
+        "replace_avatar",
+        "replace_speech",
+        "replace_product",
+    ]
+    assert items[0]["enabled"] is True
+    assert all(item["enabled"] is False for item in items[1:])
 
 
 @pytest.mark.anyio
@@ -118,6 +140,83 @@ async def test_ai_transform_rejects_unsupported_operation(tmp_path, monkeypatch)
 
     assert response.status_code == 400
     assert "replace_clothes" in response.json()["error"]["message"]
+
+
+@pytest.mark.anyio
+async def test_upload_and_run_background_task(tmp_path, monkeypatch):
+    monkeypatch.setenv("BS_MEDIA_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BS_MEDIA_UPLOADS_DIR", str(tmp_path / "uploads"))
+    monkeypatch.setenv("BS_MEDIA_DEFAULT_ASR_MODE", "mock")
+    monkeypatch.setattr("platform_app.modules.materials.service.MinioObjectStorage", FakeMinioObjectStorage)
+    monkeypatch.setattr("platform_app.modules.ai_transforms.service.AiTransformStorage", FakeAiTransformStorage)
+
+    queued = []
+
+    def fake_delay(task_id: str):
+        queued.append(task_id)
+
+    monkeypatch.setattr("platform_app.modules.ai_transforms.tasks.run_ai_transform_task.delay", fake_delay)
+
+    async with app_client() as client:
+        role, video = await _create_role_and_video(client)
+        response = await client.post(
+            "/api/ai-transforms/tasks/upload-and-run",
+            data={
+                "role_id": role["id"],
+                "source_video_id": video["id"],
+                "operations": '["replace_background"]',
+                "params": "{}",
+            },
+            files={"background_image": ("background.png", b"fake-image", "image/png")},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "queued"
+    assert payload["task"]["operations_json"] == ["replace_background"]
+    assert payload["task"]["input_asset_keys_json"]["source_video"].startswith("materials/original_videos/")
+    assert payload["task"]["input_asset_keys_json"]["background_image"].startswith("materials/background_images/")
+    assert payload["detail_url"] == f"/api/ai-transforms/tasks/{payload['task_id']}"
+    assert queued == [payload["task_id"]]
+
+
+@pytest.mark.anyio
+async def test_upload_ai_transform_source_video(tmp_path, monkeypatch):
+    monkeypatch.setenv("BS_MEDIA_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BS_MEDIA_UPLOADS_DIR", str(tmp_path / "uploads"))
+    monkeypatch.setenv("BS_MEDIA_DEFAULT_ASR_MODE", "mock")
+    monkeypatch.setattr("platform_app.modules.materials.service.MinioObjectStorage", FakeMinioObjectStorage)
+
+    asr_jobs = []
+
+    def fake_run_in_background(func, *args, **kwargs):
+        del func, kwargs
+        asr_jobs.append(args)
+
+    monkeypatch.setattr("platform_app.modules.ai_transforms.service.run_in_background", fake_run_in_background)
+
+    async with app_client() as client:
+        role = (
+            await client.post(
+                "/api/roles",
+                json={"name": "原视频上传角色", "description": "", "tags": ["测试"]},
+            )
+        ).json()
+        response = await client.post(
+            "/api/ai-transforms/source-videos/upload",
+            data={"role_id": role["id"]},
+            files={"source_video": ("source.mp4", b"fake-video", "video/mp4")},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source_video_id"] == payload["source_video"]["id"]
+    assert payload["source_video"]["material_asset_id"]
+    assert payload["source_video"]["file_path"].startswith("minio://")
+    assert payload["asr_status_url"] == f"/api/videos/{payload['source_video_id']}/asr"
+    assert payload["capabilities_url"] == "/api/ai-transforms/capabilities"
+    assert payload["capabilities"][0]["operation"] == "replace_background"
+    assert asr_jobs == [(payload["source_video_id"],)]
 
 
 @pytest.mark.anyio

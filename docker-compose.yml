@@ -96,17 +96,22 @@ services:
       - .env
     environment:
       BS_MEDIA_COMFY_JOB_STORE_PATH: /app/metahuman_platform/work/comfy_gateway_jobs.json
-      BS_MEDIA_REPLACE_BACKGROUND_WORKFLOW_PATH: /app/workstream/ai_transforms/replace_background.json
+      BS_MEDIA_REPLACE_BACKGROUND_WORKFLOW_PATH: /app/workstream/ai_transforms/replace_background_api.json
       BS_MEDIA_CONFIG_PATH: /app/config.yaml
     ports:
       - "7003:7002"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+#    volumes:
+#      - platform_uploads:/app/metahuman_platform/uploads
+#      - platform_work:/app/metahuman_platform/work
+#      - ./config.yaml:/app/config.yaml:ro
+#      - ./workstream:/app/workstream:ro
     volumes:
-      - platform_uploads:/app/metahuman_platform/uploads  
       - platform_work:/app/metahuman_platform/work
       - ./config.yaml:/app/config.yaml:ro
       - ./workstream:/app/workstream:ro
+      - /home/kemove/yinqiaoqiao/ComfyUI/input:/home/kemove/yinqiaoqiao/ComfyUI/input
     restart: unless-stopped
 
   rabbitmq:

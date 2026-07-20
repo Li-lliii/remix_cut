@@ -29,6 +29,145 @@ platform_app/modules/ai_transforms/
 
 ## 核心接口
 
+### 查询能力清单
+
+```http
+GET /api/ai-transforms/capabilities
+```
+
+作用：返回前端可渲染的 AI 变身能力按钮。当前接口协议已经列出五个能力，但 MVP 阶段只有换背景真正启用：
+
+```json
+{
+  "items": [
+    {
+      "operation": "replace_background",
+      "label": "换背景",
+      "enabled": true,
+      "required_inputs": ["background_image"],
+      "optional_inputs": []
+    },
+    {
+      "operation": "replace_clothes",
+      "label": "换服装",
+      "enabled": false,
+      "required_inputs": ["clothes_image"],
+      "optional_inputs": []
+    },
+    {
+      "operation": "replace_avatar",
+      "label": "换数字人",
+      "enabled": false,
+      "required_inputs": ["avatar_reference"],
+      "optional_inputs": []
+    },
+    {
+      "operation": "replace_speech",
+      "label": "换口播",
+      "enabled": false,
+      "required_inputs": [],
+      "optional_inputs": ["speech_audio", "speech_text"]
+    },
+    {
+      "operation": "replace_product",
+      "label": "换产品",
+      "enabled": false,
+      "required_inputs": ["product_image"],
+      "optional_inputs": []
+    }
+  ]
+}
+```
+
+### 一键上传并运行
+
+#### 上传原视频并触发解析
+
+```http
+POST /api/ai-transforms/source-videos/upload
+Content-Type: multipart/form-data
+```
+
+作用：从 AI 变身流程入口上传原视频。后端会把原视频保存到 MinIO，写入 `role_videos`，并后台触发 ASR 解析。
+
+请求：
+
+```text
+role_id=角色ID
+source_video=<上传的原视频文件>
+```
+
+成功返回：
+
+```json
+{
+  "source_video_id": "原视频记录ID",
+  "asr_status_url": "/api/videos/原视频记录ID/asr",
+  "capabilities_url": "/api/ai-transforms/capabilities",
+  "capabilities": []
+}
+```
+
+随后前端可以轮询：
+
+```http
+GET /api/videos/{source_video_id}/asr
+```
+
+解析完成后，再调用能力清单和一键变身接口。
+
+#### 已上传原视频后运行
+
+```http
+POST /api/ai-transforms/tasks/upload-and-run
+Content-Type: multipart/form-data
+```
+
+作用：原视频已经存在时的一键变身入口。前端只需要传角色、原视频记录、选择的能力和对应素材文件；后端会自动：
+
+```text
+从 role_videos.material_asset_id 找到原视频 MinIO key
+-> 上传背景图到 MinIO
+-> 创建 ai_transform task 和 task item
+-> 投递 Celery
+-> 返回 task_id/detail_url
+```
+
+MVP 换背景请求：
+
+```text
+role_id=角色ID
+source_video_id=原视频记录ID
+operations=["replace_background"]
+params={}
+background_image=<上传的背景图文件>
+```
+
+成功返回：
+
+```json
+{
+  "task_id": "任务ID",
+  "status": "queued",
+  "detail_url": "/api/ai-transforms/tasks/任务ID",
+  "task": {},
+  "items": [],
+  "result_download_url": ""
+}
+```
+
+如果提交未启用能力，例如 `replace_clothes`，会返回 400：
+
+```json
+{
+  "error": {
+    "code": "http_error",
+    "message": "能力尚未接入工作流: replace_clothes",
+    "details": null
+  }
+}
+```
+
 ### 创建任务
 
 ```http
@@ -161,7 +300,7 @@ ComfyUI workflow 文件：
 workstream/ai_transforms/replace_background_api.json
 ```
 
-这是 ComfyUI API workflow 格式。`scripts/run_comfyui_workflow.py` 会读取它，替换输入视频、背景图和输出前缀，然后提交给 ComfyUI `/prompt`。
+这是 ComfyUI API workflow 格式。正式接口会复用 `scripts/comfyui/replace_background_api_workflow.py` 里的提交流程读取它，替换输入视频、背景图和输出前缀，然后提交给 ComfyUI `/prompt`。
 
 当前默认节点映射在 `comfy_adapter.py`：
 
@@ -212,9 +351,7 @@ AI 变身模块不负责“上传素材”。它只消费素材 key。
 
 ## 后续建议
 
-- 新增背景图素材上传接口：`/api/materials/background-images/upload`
-- 新增一键上传并运行接口：`/api/ai-transforms/tasks/upload-and-run`
-- 支持 `auto_submit=true`
+- 接入换服装、换数字人、换口播、换产品对应的 ComfyUI workflow
 - 支持多 operation 串行执行
 - 把 SQLite 迁移到 PostgreSQL，以支持多 worker 高并发
 

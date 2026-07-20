@@ -9,6 +9,7 @@ import time
 import shutil
 import urllib.request
 import urllib.parse
+import urllib.error
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -41,6 +42,10 @@ class ComfyUIClient:
         try:
             with urllib.request.urlopen(req, timeout=30) as response:
                 return json.loads(response.read())
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="replace")
+            logger.error(f"ComfyUI 请求失败: {e} body={body}")
+            raise RuntimeError(f"HTTP Error {e.code}: {e.reason}; body={body}") from e
         except Exception as e:
             logger.error(f"ComfyUI 请求失败: {e}")
             raise

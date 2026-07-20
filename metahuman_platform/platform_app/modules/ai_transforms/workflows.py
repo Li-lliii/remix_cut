@@ -83,19 +83,27 @@ class AiTransformWorkflowRunner:
         self.item_repository.update_status(item["id"], status="running")
         output_dir = get_settings().generated_dir / "ai_transforms" / task["id"]
         output_dir.mkdir(parents=True, exist_ok=True)
-        submitted = self.comfy_adapter.submit_replace_background(
-            task_id=task["id"],
-            source_video_path=current_video,
-            background_image_path=background,
-            output_dir=output_dir,
-            params=task.get("params_json") or {},
-        )
+        try:
+            submitted = self.comfy_adapter.submit_replace_background(
+                task_id=task["id"],
+                source_video_path=current_video,
+                background_image_path=background,
+                output_dir=output_dir,
+                params=task.get("params_json") or {},
+            )
+        except Exception as exc:
+            self.item_repository.update_status(item["id"], status="failed", error_message=str(exc))
+            raise
         backend_job_id = submitted["backend_job_id"]
         self.item_repository.update_status(item["id"], status="submitted", backend_job_id=backend_job_id)
 
         started = time.monotonic()
         while time.monotonic() - started <= timeout_sec:
-            result = self.comfy_adapter.poll(backend_job_id)
+            try:
+                result = self.comfy_adapter.poll(backend_job_id)
+            except Exception as exc:
+                self.item_repository.update_status(item["id"], status="failed", error_message=str(exc))
+                raise
             status = result.get("status")
             if status == "pending":
                 time.sleep(poll_interval_sec)
